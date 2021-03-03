@@ -878,6 +878,7 @@ void settings_bright(void)
             if (_anim_mode > 0) _anim_mode--; else _anim_mode = 4;
             _animStart = 1; //разрешаем анимацию
             animFlip(); //анимция перелистывания
+            _disableSleep = 1; //запрещаем сон
             break;
           case 3:
             if (_bright_mode > 0) _bright_mode--; else _bright_mode = 2;
@@ -944,6 +945,7 @@ void settings_bright(void)
             if (_anim_mode < 4) _anim_mode++; else _anim_mode = 0;
             _animStart = 1; //разрешаем анимацию
             animFlip(); //анимция перелистывания
+            _disableSleep = 1; //запрещаем сон
             break;
           case 3:
             if (_bright_mode < 2) _bright_mode++; else _bright_mode = 0;
