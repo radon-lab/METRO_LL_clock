@@ -1,5 +1,5 @@
 /*
-  Arduino IDE 1.8.13 версия прошивки 1.4.0 от 03.03.21
+  Arduino IDE 1.8.13 версия прошивки 1.4.1 от 03.03.21
   Специльно для проекта "Часы METRO LAST LIGHT"
   Исходник - https://github.com/radon-lab/METRO_LL_clock
   Автор Radon-lab.
@@ -268,7 +268,7 @@ void sleepMode(void) //режим сна
 void sleepOut(void) //выход из сна
 {
   _sleep = 0; //сбрасываем флаг активного сна
-  if (!_timer_mode) _mode = 0; //если таймер не работает, переходим в режим часов
+  if (_mode != 3) _mode = 0; //если таймер не работает, переходим в режим часов
   TWI_enable(); //включение TWI
   TimeGetDate(time); //синхронизируем время
   switch (_bright_mode) {
@@ -350,125 +350,110 @@ void pwrDownMessage(void) //оповещения выключения
 //-------------------------------Анимция перелистывания----------------------------------------------------
 void animFlip(void) //анимция перелистывания
 {
-  if (!_mode && !_sleep && _animStart) {
-    uint8_t anim_buf[4]; //буфер анимации
-    uint8_t indiPos = 0; //буфер анимации
-    switch (_anim_mode) {
-      case 1:
-        _disableSleep = 1; //запрещаем сон
+  uint8_t anim_buf[4]; //буфер анимации
+  uint8_t indiPos = 0; //буфер анимации
 
-        anim_buf[0] = time[4] / 10; //часы
-        anim_buf[1] = time[4] % 10; //часы
-        anim_buf[2] = time[5] / 10; //минуты
-        anim_buf[3] = time[5] % 10; //минуты
+  switch (_anim_mode) {
+    case 1:
+      anim_buf[0] = time[4] / 10; //часы
+      anim_buf[1] = time[4] % 10; //часы
+      anim_buf[2] = time[5] / 10; //минуты
+      anim_buf[3] = time[5] % 10; //минуты
 
-        for (uint8_t i = 0; i < 10 && !check_keys();) {
-          data_convert(); //преобразование данных
-          if (!timer_dot) { //если таймер отработал
-            if (anim_buf[0] < 9) anim_buf[0]++; else anim_buf[0] = 0;
-            indiPrintNum(anim_buf[0], 0); //вывод часов
-            if (anim_buf[1] < 9) anim_buf[1]++; else anim_buf[1] = 0;
-            indiPrintNum(anim_buf[1], 1); //вывод часов
-            if (anim_buf[2] < 9) anim_buf[2]++; else anim_buf[2] = 0;
-            indiPrintNum(anim_buf[2], 2); //вывод минут
-            if (anim_buf[3] < 9) anim_buf[3]++; else anim_buf[3] = 0;
-            indiPrintNum(anim_buf[3], 3); //вывод минут
+      for (uint8_t i = 0; i < 10 && !check_keys();) {
+        data_convert(); //преобразование данных
+        if (!timer_dot) { //если таймер отработал
+          if (anim_buf[0] < 9) anim_buf[0]++; else anim_buf[0] = 0;
+          indiPrintNum(anim_buf[0], 0); //вывод часов
+          if (anim_buf[1] < 9) anim_buf[1]++; else anim_buf[1] = 0;
+          indiPrintNum(anim_buf[1], 1); //вывод часов
+          if (anim_buf[2] < 9) anim_buf[2]++; else anim_buf[2] = 0;
+          indiPrintNum(anim_buf[2], 2); //вывод минут
+          if (anim_buf[3] < 9) anim_buf[3]++; else anim_buf[3] = 0;
+          indiPrintNum(anim_buf[3], 3); //вывод минут
+          i++; //прибавляем цикл
+          timer_dot = ANIM_1_TIME; //устанавливаем таймер
+        }
+      }
+      break;
+
+    case 2:
+      for (uint8_t i = 0; i < 4; i++) anim_buf[i] = 9; //буфер анимации
+
+      for (uint8_t i = 1; i && !check_keys();) {
+        data_convert(); //преобразование данных
+        if (!timer_dot) { //если таймер отработал
+          i = 0; //сбрасываем счетчик циклов
+          indiPrintNum(anim_buf[0], 0); //вывод часов
+          if (anim_buf[0] > time[4] / 10) {
+            anim_buf[0]--;
+            i++;
+          }
+          indiPrintNum(anim_buf[1], 1); //вывод часов
+          if (anim_buf[1] > time[4] % 10) {
+            anim_buf[1]--;
+            i++;
+          }
+          indiPrintNum(anim_buf[2], 2); //вывод минут
+          if (anim_buf[2] > time[5] / 10) {
+            anim_buf[2]--;
+            i++;
+          }
+          indiPrintNum(anim_buf[3], 3); //вывод минут
+          if (anim_buf[3] > time[5] % 10) {
+            anim_buf[3]--;
+            i++;
+          }
+          timer_dot = ANIM_2_TIME; //устанавливаем таймер
+        }
+      }
+      break;
+
+    case 3:
+      anim_buf[3] = time[4] / 10; //часы
+      anim_buf[2] = time[4] % 10; //часы
+      anim_buf[1] = time[5] / 10; //минуты
+      anim_buf[0] = time[5] % 10; //минуты
+
+      for (uint8_t i = 0; i < 4 && !check_keys();) {
+        data_convert(); //преобразование данных
+        if (!timer_dot) { //если таймер отработал
+          for (uint8_t b = 0; b < 4; b++) {
+            if (b <= i) indiPrintNum(anim_buf[i - b], b); //вывод часов
+            else indiPrint(" ", b); //вывод пустого символа
+          }
+          i++; //прибавляем цикл
+          timer_dot = ANIM_3_TIME; //устанавливаем таймер
+        }
+      }
+      _animStart = 0; //завершаем анимацию
+      _timer_sleep = 0; //сбрасываем таймер сна
+      if (!_timer_mode || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
+      break;
+
+    case 4:
+      _disableSleep = 1; //запрещаем сон
+
+      anim_buf[0] = time[4] / 10; //часы
+      anim_buf[1] = time[4] % 10; //часы
+      anim_buf[2] = time[5] / 10; //минуты
+      anim_buf[3] = time[5] % 10; //минуты
+
+      for (uint8_t i = 0; i < 4 && !check_keys();) {
+        data_convert(); //преобразование данных
+        if (!timer_dot) { //если таймер отработал
+          for (uint8_t b = 0; b < 4 - i; b++) {
+            if (b == indiPos) indiPrintNum(anim_buf[3 - i], b); //вывод часов
+            else indiPrint(" ", b); //вывод пустого символа
+          }
+          if (indiPos++ >= 3 - i) {
+            indiPos = 0; //сбрасываем позицию индикатора
             i++; //прибавляем цикл
-            timer_dot = ANIM_1_TIME; //устанавливаем таймер
           }
+          timer_dot = ANIM_4_TIME; //устанавливаем таймер
         }
-        _animStart = 0; //завершаем анимацию
-        _timer_sleep = 0; //сбрасываем таймер сна
-        if (!_timer_mode || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
-        break;
-
-      case 2:
-        _disableSleep = 1; //запрещаем сон
-        for (uint8_t i = 0; i < 4; i++) anim_buf[i] = 9; //буфер анимации
-
-        for (uint8_t i = 1; i && !check_keys();) {
-          data_convert(); //преобразование данных
-          if (!timer_dot) { //если таймер отработал
-            i = 0; //сбрасываем счетчик циклов
-            indiPrintNum(anim_buf[0], 0); //вывод часов
-            if (anim_buf[0] > time[4] / 10) {
-              anim_buf[0]--;
-              i++;
-            }
-            indiPrintNum(anim_buf[1], 1); //вывод часов
-            if (anim_buf[1] > time[4] % 10) {
-              anim_buf[1]--;
-              i++;
-            }
-            indiPrintNum(anim_buf[2], 2); //вывод минут
-            if (anim_buf[2] > time[5] / 10) {
-              anim_buf[2]--;
-              i++;
-            }
-            indiPrintNum(anim_buf[3], 3); //вывод минут
-            if (anim_buf[3] > time[5] % 10) {
-              anim_buf[3]--;
-              i++;
-            }
-            timer_dot = ANIM_2_TIME; //устанавливаем таймер
-          }
-        }
-        _animStart = 0; //завершаем анимацию
-        _timer_sleep = 0; //сбрасываем таймер сна
-        if (!_timer_mode || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
-        break;
-
-      case 3:
-        _disableSleep = 1; //запрещаем сон
-
-        anim_buf[3] = time[4] / 10; //часы
-        anim_buf[2] = time[4] % 10; //часы
-        anim_buf[1] = time[5] / 10; //минуты
-        anim_buf[0] = time[5] % 10; //минуты
-
-        for (uint8_t i = 0; i < 4 && !check_keys();) {
-          data_convert(); //преобразование данных
-          if (!timer_dot) { //если таймер отработал
-            for (uint8_t b = 0; b < 4; b++) {
-              if (b <= i) indiPrintNum(anim_buf[i - b], b); //вывод часов
-              else indiPrint(" ", b); //вывод часов
-            }
-            i++; //прибавляем цикл
-            timer_dot = ANIM_3_TIME; //устанавливаем таймер
-          }
-        }
-        _animStart = 0; //завершаем анимацию
-        _timer_sleep = 0; //сбрасываем таймер сна
-        if (!_timer_mode || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
-        break;
-
-      case 4:
-        _disableSleep = 1; //запрещаем сон
-
-        anim_buf[0] = time[4] / 10; //часы
-        anim_buf[1] = time[4] % 10; //часы
-        anim_buf[2] = time[5] / 10; //минуты
-        anim_buf[3] = time[5] % 10; //минуты
-
-        for (uint8_t i = 0; i < 4 && !check_keys();) {
-          data_convert(); //преобразование данных
-          if (!timer_dot) { //если таймер отработал
-            for (uint8_t b = 0; b < 4 - i; b++) {
-              if (b == indiPos) indiPrintNum(anim_buf[3 - i], b); //вывод часов
-              else indiPrint(" ", b); //вывод часов
-            }
-            if (indiPos++ >= 3 - i) {
-              indiPos = 0; //сбрасываем позицию индикатора
-              i++; //прибавляем цикл
-            }
-            timer_dot = ANIM_4_TIME; //устанавливаем таймер
-          }
-        }
-        _animStart = 0; //завершаем анимацию
-        _timer_sleep = 0; //сбрасываем таймер сна
-        if (!_timer_mode || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
-        break;
-    }
+      }
+      break;
   }
 }
 //-------------------------------------Ожидание--------------------------------------------------------
@@ -770,8 +755,8 @@ void settings_time(void)
         indiClr(); //очистка индикаторов
         indiPrint("OUT", 0);
         for (timer_millis = TIME_MSG; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
-        _disableSleep = 0; //разрешаем сон
-        _mode = 0; //переходим в режим часов
+        if (!_timer_mode || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
+        if (_mode != 3) _mode = 0; //переходим в режим часов
         scr = 0; //обновляем экран
         return;
     }
@@ -878,7 +863,6 @@ void settings_bright(void)
             if (_anim_mode > 0) _anim_mode--; else _anim_mode = 4;
             _animStart = 1; //разрешаем анимацию
             animFlip(); //анимция перелистывания
-            _disableSleep = 1; //запрещаем сон
             break;
           case 3:
             if (_bright_mode > 0) _bright_mode--; else _bright_mode = 2;
@@ -945,7 +929,6 @@ void settings_bright(void)
             if (_anim_mode < 4) _anim_mode++; else _anim_mode = 0;
             _animStart = 1; //разрешаем анимацию
             animFlip(); //анимция перелистывания
-            _disableSleep = 1; //запрещаем сон
             break;
           case 3:
             if (_bright_mode < 2) _bright_mode++; else _bright_mode = 0;
@@ -1089,9 +1072,9 @@ void settings_bright(void)
         indiClr(); //очистка индикаторов
         indiPrint("OUT", 0);
         for (timer_millis = TIME_MSG; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
-        _disableSleep = 0; //разрешаем сон
+        if (!_timer_mode || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
+        if (_mode != 3) _mode = 0; //переходим в режим часов
         _bright_block = 0; //разрешаем управление подсветкой
-        _mode = 0; //переходим в режим часов
         scr = 0; //обновляем экран
         return;
     }
@@ -1174,7 +1157,7 @@ void set_timer(void)
         indiClr(); //очистка индикаторов
         indiPrint("OUT", 0);
         for (timer_millis = TIME_MSG; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
-        _disableSleep = 0; //разрешаем сон
+        if (!_timer_mode || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
         scr = 0; //обновляем экран
         return;
     }
@@ -1199,7 +1182,13 @@ void main_screen(void) //главный экран
     case 3: pwrDownMessage(); break; //оповещения выключения питания
   }
 
-  animFlip(); //анимция перелистывания
+  if (!_mode && !_sleep && _animStart) {
+    _animStart = 0; //завершаем анимацию
+    _disableSleep = 1; //запрещаем сон
+    animFlip(); //анимция перелистывания
+    _timer_sleep = 0; //сбрасываем таймер сна
+    if (!_timer_mode || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
+  }
 
   if (!scr) {
     scr = 1; //сбрасываем флаг
