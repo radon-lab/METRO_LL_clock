@@ -426,9 +426,6 @@ void animFlip(void) //анимция перелистывания
           timer_dot = ANIM_3_TIME; //устанавливаем таймер
         }
       }
-      _animStart = 0; //завершаем анимацию
-      _timer_sleep = 0; //сбрасываем таймер сна
-      if (!_timer_mode || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
       break;
 
     case 4:
