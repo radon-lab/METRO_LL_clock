@@ -1,5 +1,5 @@
 /*
-  Arduino IDE 1.8.13 версия прошивки 1.4.1 от 04.03.21
+  Arduino IDE 1.8.13 версия прошивки 1.4.3 от 09.03.21
   Специльно для проекта "Часы METRO LAST LIGHT"
   Исходник - https://github.com/radon-lab/METRO_LL_clock
   Автор Radon-lab.
@@ -45,11 +45,10 @@ boolean _disableSleep = 0; //флаг запрета сна
 uint8_t bat = 100; //заряд акб
 uint8_t _timer_sleep = 0; //счетчик ухода в сон
 uint8_t _sleep_time = DEFAUL_SLEEP_TIME; //время ухода в сон
-boolean _sleep = 0; //влаг активного сна
+boolean _sleep = 0; //флаг активного сна
 
-uint8_t time[7]; //массив времени(год, месяц, день, день_недели, часы, минуты, секунды)
+uint8_t time[7]; //массив времени(год, месяц, день, день_недели, часы, минуты, секунды
 
-volatile boolean power_off = 0; //флаг отключения питания
 volatile uint8_t tick_wdt; //счетчик тиков для обработки данных
 uint32_t timer_millis; //таймер отсчета миллисекунд
 uint32_t timer_dot; //таймер отсчета миллисекунд для точек
@@ -70,23 +69,11 @@ int main(void)  //инициализация
   RTC_BAT_INIT; //инициализация дополнительного питания RTC
   RTC_INIT; //инициализация питания RTC
 
-  EICRA = 0b00000010; //настраиваем внешнее прерывание по спаду импульса на INT0
   PRR = 0b10101111; //отключаем все лишнее (I2C | TIMER0 | TIMER1 | SPI | UART | ADC)
   ACSR |= 1 << ACD; //отключаем компаратор
 
   indiInit(); //инициализация индикаторов
-
-  _batCheck(); //проверяем заряд акб
-  if (bat < LOW_BAT_P) { //если батарея разряжена
-    indiPrint("LO", 1); //отрисовка сообщения разряженной батареи
-    _delay_ms(TIME_PWR_DOWN); //ждём
-    _PowerDown(); //выключаем питание
-  }
-  else {
-    TWI_enable(); //включение TWI
-    WDT_enable(); //запускаем WatchDog с пределителем 2
-    indiPrint("####", 0); //отрисовка сообщения
-  }
+  _PowerDown(); //выключаем питание
 
   if (eeprom_read_byte((uint8_t*)100) != 100) { //если первый запуск, восстанавливаем из переменных
     eeprom_update_byte((uint8_t*)100, 100); //делаем метку
@@ -117,7 +104,6 @@ int main(void)  //инициализация
     _anim_mode = eeprom_read_byte((uint8_t*)19); //считываем режим анимации из памяти
   }
 
-  TimeGetDate(time); //синхронизация времени
   if (time[0] < 21 || time[0] > 50) { //если пропадало питание
     indiPrint("INIT", 0);
     eeprom_read_block((void*)&time, 0, sizeof(time)); //считываем дату из памяти
@@ -141,41 +127,6 @@ int main(void)  //инициализация
     main_screen(); //главный экран
   }
   return 0; //конец
-}
-//------------------------------------Включение питания----------------------------------------------
-ISR(INT0_vect) //внешнее прерывание на пине INT0 - включение питания
-{
-  _delay_ms(TIME_PWR_ON); //ждем 2 секунды
-  if (!RIGHT_OUT) { //если кнопка не отжата
-    _batCheck(); //проверяем заряд акб
-    if (bat > PWR_BAT_P) { //если батарея не разряжена
-      TimeGetDate(time); //синхронизируем время
-
-      switch (_bright_mode) {
-        case 0: indiSetBright(brightDefault[_bright_levle]); break; //установка яркости индикаторов
-        case 1: indiSetBright(brightDefault[indiBright[changeBright()]]); break; //установка яркости индикаторов
-        case 2: indiSetBright(brightDefault[lightSens()]); break; //установка яркости индикаторов
-      }
-
-      indiDisableSleep(); //включаем дисплей
-      indiPrint("####", 0); //отрисовка сообщения
-
-      while (!RIGHT_OUT); //ждем пока отпустят кнопу
-
-      TWI_enable(); //включение TWI
-      WDT_enable(); //запускаем WatchDog с пределителем 2
-      EIMSK = 0b00000000; //запрещаем внешнее прерывание INT0
-
-      power_off = 0; //флаг выключения питания
-    }
-    else { //иначе выводим предупреждение об разряженной батарее
-      indiSetBright(127); //устанавливаем максимальную яркость
-      indiDisableSleep(); //включаем дисплей
-      indiPrint("LO", 1); //отрисовка сообщения разряженной батареи
-      _delay_ms(TIME_PWR_DOWN); //ждём
-      indiEnableSleep(); //выключаем дисплей
-    }
-  }
 }
 //-------------------------Прерывание по переполнению wdt - 17.5мс------------------------------------
 ISR(WDT_vect) //прерывание по переполнению wdt - 17.5мс
@@ -223,7 +174,6 @@ void data_convert(void) //преобразование данных
         tmr_bat = 0; //сбрасываем таймер
         _batCheck(); //проверяем заряд акб
         if (bat < LOW_BAT_P) _msg_type = 3; //если батарея разряжена
-        else if (bat < MSG_BAT_P) _msg_type = 2; //если осталось мало заряда
       }
       else tmr_bat++; //иначе прибавляем время
 
@@ -276,11 +226,13 @@ void sleepOut(void) //выход из сна
     case 2: indiSetBright(brightDefault[lightSens()]); break; //установка яркости индикаторов
   }
   indiDisableSleep(); //включаем дисплей
+  if (bat < MSG_BAT_P) _msg_type = 2; //если осталось мало заряда
 }
 //-------------------------------Оповещения таймера----------------------------------------------------
 void timerMessage(void) //оповещения таймера
 {
   dot_state = 0; //выключаем точки
+  _msg_type = 0; //сбрасываем тип оповещения
   _flask_block = 1; //запрещаем управление колбой
   _timer_mode = 0; //сбрасываем режим таймера
   for (timer_millis = TIME_MSG_TMR_OVF; timer_millis && !check_keys();) {
@@ -294,7 +246,6 @@ void timerMessage(void) //оповещения таймера
   }
   _timer_secs = timerDefault[_timer_preset] * 60; //устанавливаем таймер в начало
   flask_state = _flask_mode; //обновление стотояния колбы
-  _msg_type = 0; //сбрасываем тип оповещения
   _mode = 0; //переходим в режим часов
   _timer_sleep = 0; //сбрасываем таймер сна
   _flask_block = 0; //разрешаем управление колбой
@@ -303,7 +254,7 @@ void timerMessage(void) //оповещения таймера
 //-------------------------------Оповещения батареи----------------------------------------------------
 void lowBatMessage(void) //оповещения батареи
 {
-  if (_sleep) sleepOut(); //выход из сна
+  _msg_type = 0; //сбрасываем тип оповещения
   _disableSleep = 1; //запрещаем сон
   _flask_block = 1; //запрещаем управление колбой
   dot_state = 0; //выключаем точки
@@ -319,7 +270,6 @@ void lowBatMessage(void) //оповещения батареи
     }
   }
   flask_state = _flask_mode; //обновление стотояния колбы
-  _msg_type = 0; //сбрасываем тип оповещения
   _timer_sleep = 0; //сбрасываем таймер сна
   _flask_block = 0; //разрешаем управление колбой
   _disableSleep = 0; //разрешаем сон
@@ -328,6 +278,7 @@ void lowBatMessage(void) //оповещения батареи
 void pwrDownMessage(void) //оповещения выключения
 {
   if (_sleep) sleepOut(); //выход из сна
+  _msg_type = 0; //сбрасываем тип оповещения
   _disableSleep = 1; //запрещаем сон
   _flask_block = 1; //запрещаем управление колбой
   dot_state = 0; //выключаем точки
@@ -340,8 +291,8 @@ void pwrDownMessage(void) //оповещения выключения
       timer_dot = 500; //устанавливаем таймер
     }
   }
+  eeprom_update_block((void*)&time, 0, sizeof(time)); //записываем дату в память
   flask_state = _flask_mode; //обновление стотояния колбы
-  _msg_type = 0; //сбрасываем тип оповещения
   _timer_sleep = 0; //сбрасываем таймер сна
   _flask_block = 0; //разрешаем управление колбой
   _disableSleep = 0; //разрешаем сон
@@ -350,8 +301,11 @@ void pwrDownMessage(void) //оповещения выключения
 //-------------------------------Анимция перелистывания----------------------------------------------------
 void animFlip(void) //анимция перелистывания
 {
+  boolean stopIndi[4]; //буфер анимации
   uint8_t anim_buf[4]; //буфер анимации
-  uint8_t indiPos = 0; //буфер анимации
+  uint8_t indiPos = 0; //позиция индикатора
+  uint8_t numState = 0; //фаза числа
+  uint8_t stopTick = 0; //фаза числа
 
   switch (_anim_mode) {
     case 1:
@@ -362,17 +316,14 @@ void animFlip(void) //анимция перелистывания
 
       for (uint8_t i = 0; i < 10 && !check_keys();) {
         data_convert(); //преобразование данных
-        if (!timer_dot) { //если таймер отработал
-          if (anim_buf[0] < 9) anim_buf[0]++; else anim_buf[0] = 0;
-          indiPrintNum(anim_buf[0], 0); //вывод часов
-          if (anim_buf[1] < 9) anim_buf[1]++; else anim_buf[1] = 0;
-          indiPrintNum(anim_buf[1], 1); //вывод часов
-          if (anim_buf[2] < 9) anim_buf[2]++; else anim_buf[2] = 0;
-          indiPrintNum(anim_buf[2], 2); //вывод минут
-          if (anim_buf[3] < 9) anim_buf[3]++; else anim_buf[3] = 0;
-          indiPrintNum(anim_buf[3], 3); //вывод минут
+        dotFlash(); //мигаем точками
+        if (!timer_millis) { //если таймер отработал
+          for (uint8_t n = 0; n < 4; n++) {
+            if (anim_buf[n] < 9) anim_buf[n]++; else anim_buf[n] = 0;
+            indiPrintNum(anim_buf[n], n); //вывод часов
+          }
           i++; //прибавляем цикл
-          timer_dot = ANIM_1_TIME; //устанавливаем таймер
+          timer_millis = animTime[0]; //устанавливаем таймер
         }
       }
       break;
@@ -382,7 +333,8 @@ void animFlip(void) //анимция перелистывания
 
       for (uint8_t i = 1; i && !check_keys();) {
         data_convert(); //преобразование данных
-        if (!timer_dot) { //если таймер отработал
+        dotFlash(); //мигаем точками
+        if (!timer_millis) { //если таймер отработал
           i = 0; //сбрасываем счетчик циклов
           indiPrintNum(anim_buf[0], 0); //вывод часов
           if (anim_buf[0] > time[4] / 10) {
@@ -404,7 +356,7 @@ void animFlip(void) //анимция перелистывания
             anim_buf[3]--;
             i++;
           }
-          timer_dot = ANIM_2_TIME; //устанавливаем таймер
+          timer_millis = animTime[1]; //устанавливаем таймер
         }
       }
       break;
@@ -417,13 +369,14 @@ void animFlip(void) //анимция перелистывания
 
       for (uint8_t i = 0; i < 4 && !check_keys();) {
         data_convert(); //преобразование данных
-        if (!timer_dot) { //если таймер отработал
+        dotFlash(); //мигаем точками
+        if (!timer_millis) { //если таймер отработал
           for (uint8_t b = 0; b < 4; b++) {
             if (b <= i) indiPrintNum(anim_buf[i - b], b); //вывод часов
             else indiPrint(" ", b); //вывод пустого символа
           }
           i++; //прибавляем цикл
-          timer_dot = ANIM_3_TIME; //устанавливаем таймер
+          timer_millis = animTime[2]; //устанавливаем таймер
         }
       }
       break;
@@ -438,7 +391,8 @@ void animFlip(void) //анимция перелистывания
 
       for (uint8_t i = 0; i < 4 && !check_keys();) {
         data_convert(); //преобразование данных
-        if (!timer_dot) { //если таймер отработал
+        dotFlash(); //мигаем точками
+        if (!timer_millis) { //если таймер отработал
           for (uint8_t b = 0; b < 4 - i; b++) {
             if (b == indiPos) indiPrintNum(anim_buf[3 - i], b); //вывод часов
             else indiPrint(" ", b); //вывод пустого символа
@@ -447,7 +401,73 @@ void animFlip(void) //анимция перелистывания
             indiPos = 0; //сбрасываем позицию индикатора
             i++; //прибавляем цикл
           }
-          timer_dot = ANIM_4_TIME; //устанавливаем таймер
+          timer_millis = animTime[3]; //устанавливаем таймер
+        }
+      }
+      break;
+
+    case 5:
+      for (uint8_t i = 0; i < 4; i++) anim_buf[i] = stopIndi[i] = 0; //буфер анимации
+
+      for (uint8_t i = 1; i && !check_keys();) {
+        data_convert(); //преобразование данных
+        dotFlash(); //мигаем точками
+        if (!timer_millis) { //если таймер отработал
+          if (numState < 4) numState++;
+          else {
+            numState = i = stopTick = 0;
+            if (anim_buf[0] < time[4] / 10) {
+              anim_buf[0]++;
+              i++;
+            }
+            else stopTick += 17;
+            if (anim_buf[1] < time[4] % 10) {
+              anim_buf[1]++;
+              i++;
+            }
+            else stopTick += 17;
+            if (anim_buf[2] < time[5] / 10) {
+              anim_buf[2]++;
+              i++;
+            }
+            else stopTick += 17;
+            if (anim_buf[3] < time[5] % 10) {
+              anim_buf[3]++;
+              i++;
+            }
+            else stopTick += 17;
+          }
+          if (!stopIndi[0] && anim_buf[0] == time[4] / 10 && numState >= 2) stopIndi[0] = 1;
+          if (!stopIndi[1] && anim_buf[1] == time[4] % 10 && numState >= 2) stopIndi[1] = 1;
+          if (!stopIndi[2] && anim_buf[2] == time[5] / 10 && numState >= 2) stopIndi[2] = 1;
+          if (!stopIndi[3] && anim_buf[3] == time[5] % 10 && numState >= 2) stopIndi[3] = 1;
+
+          for (uint8_t c = 0; c < 4; c++) {
+            if (!stopIndi[c]) indi_buf[c] = numbersForAnim[anim_buf[c]][numState]; //отрисовываем
+            else indiPrintNum(anim_buf[c], c);
+          }
+          timer_millis = animTime[4] + stopTick; //устанавливаем таймер
+        }
+      }
+      break;
+
+    case 6:
+      anim_buf[0] = time[4] / 10; //часы
+      anim_buf[1] = time[4] % 10; //часы
+      anim_buf[2] = time[5] / 10; //минуты
+      anim_buf[3] = time[5] % 10; //минуты
+
+      for (uint8_t i = 0; i < 4 && !check_keys();) {
+        data_convert(); //преобразование данных
+        dotFlash(); //мигаем точками
+        if (!timer_millis) { //если таймер отработал
+          if (numState < 2) numState++;
+          else {
+            numState = 0; //переходим к следующему индикатору
+            i++; //прибавляем цикл
+          }
+          indi_buf[i] = numbersForAnim[anim_buf[i]][numState]; //отрисовываем
+          timer_millis = animTime[5]; //устанавливаем таймер
         }
       }
       break;
@@ -560,16 +580,59 @@ void TWI_disable(void) //выключение TWI
 {
   PRR |= (1 << 7); //выключаем питание i2c
 }
+//------------------------------------Включение питания----------------------------------------------
+EMPTY_INTERRUPT(INT0_vect); //внешнее прерывание на пине INT0 - включение питания
 //----------------------------------------------------------------------------------
 void _PowerDown(void)
 {
-  EIMSK = 0b00000001; //разрешаем внешнее прерывание INT0
-
   indiEnableSleep(); //выключаем дисплей
   TWI_disable(); //выключение TWI
   WDT_disable(); //выключение WDT
-  power_off = 1; //устанавливаем флаг
-  while (power_off) sleep_pwr();
+
+  EICRA = 0b00000010; //настраиваем внешнее прерывание по спаду импульса на INT0
+  EIMSK = 0b00000001; //разрешаем внешнее прерывание INT0
+
+  while (1) {
+    sleep_pwr();
+
+    uint16_t startDellay = TIME_PWR_ON; //устанавливаем таймер
+    while (!RIGHT_OUT) { //если кнопка не отжата
+      if (startDellay) { //если время не истекло
+        _delay_ms(1); //ждем 1мс
+        startDellay--; //отнимаем от таймера 1 мс
+      }
+      else { //иначе включаем питание
+        _batCheck(); //проверяем заряд акб
+        if (bat > PWR_BAT_P) { //если батарея не разряжена
+          TWI_enable(); //включение TWI
+          TimeGetDate(time); //синхронизируем время
+
+          switch (_bright_mode) {
+            case 0: indiSetBright(brightDefault[_bright_levle]); break; //установка яркости индикаторов
+            case 1: indiSetBright(brightDefault[indiBright[changeBright()]]); break; //установка яркости индикаторов
+            case 2: indiSetBright(brightDefault[lightSens()]); break; //установка яркости индикаторов
+          }
+
+          indiDisableSleep(); //включаем дисплей
+          indiPrint("####", 0); //отрисовка сообщения
+
+          while (!RIGHT_OUT); //ждем пока отпустят кнопу
+
+          WDT_enable(); //запускаем WatchDog с пределителем 2
+          EIMSK = 0b00000000; //запрещаем внешнее прерывание INT0
+
+          return; //выходим из выключения питания
+        }
+        else { //иначе выводим предупреждение об разряженной батарее
+          indiSetBright(brightDefault[0]); //устанавливаем минимальную яркость
+          indiDisableSleep(); //включаем дисплей
+          indiPrint("LO", 1); //отрисовка сообщения разряженной батареи
+          _delay_ms(TIME_PWR_DOWN); //ждём
+          indiEnableSleep(); //выключаем дисплей
+        }
+      }
+    }
+  }
 }
 //----------------------------------------------------------------------------------
 void _batCheck(void)
@@ -585,18 +648,18 @@ uint8_t check_keys(void) //проверка кнопок
 
   switch (btn_switch) { //переключаемся в зависимости от состояния мультиопроса
     case 0:
-      if (!LEFT_OUT) { //если нажата кл. ок
+      if (!LEFT_OUT) { //если нажата левая кл.
         btn_switch = 1; //выбираем клавишу опроса
         btn_state = 0; //обновляем текущее состояние кнопки
       }
-      else if (!RIGHT_OUT) { //если нажата кл. вниз
+      else if (!RIGHT_OUT) { //если нажата правая кл.
         btn_switch = 2; //выбираем клавишу опроса
         btn_state = 0; //обновляем текущее состояние кнопки
       }
       else btn_state = 1; //обновляем текущее состояние кнопки
       break;
-    case 1: btn_state = LEFT_OUT; break; //опрашиваем клавишу ок
-    case 2: btn_state = RIGHT_OUT; break; //опрашиваем клавишу вниз
+    case 1: btn_state = LEFT_OUT; break; //опрашиваем левую клавишу
+    case 2: btn_state = RIGHT_OUT; break; //опрашиваем правую клавишу
   }
 
   switch (btn_state) { //переключаемся в зависимости от состояния клавиши
@@ -675,8 +738,8 @@ void settings_time(void)
           break;
         case 2:
         case 3:
-          if (!blink_data || cur_mode == 3) indiPrintNum(time[1], 0, 2, '0'); //вывод месяца
-          if (!blink_data || cur_mode == 2) indiPrintNum(time[2], 2, 2, '0'); //вывод даты
+          if (!blink_data || cur_mode == 2) indiPrintNum(time[2], 0, 2, '0'); //вывод даты
+          if (!blink_data || cur_mode == 3) indiPrintNum(time[1], 2, 2, '0'); //вывод месяца
           break;
         case 4:
           indiPrint("20", 0); //вывод 2000
@@ -695,8 +758,8 @@ void settings_time(void)
           case 1: if (time[5] > 0) time[5]--; else time[5] = 59; break; //минуты
 
           //настройка даты
-          case 2: if (time[1] > 1) time[1]--; else time[1] = 12; time[2] = 1; break; //месяц
-          case 3: if (time[2] > 1 ) time[2]--; else time[2] = (time[1] == 2 && !(time[0] % 4)) ? 1 : 0 + pgm_read_byte(&daysInMonth[time[1] - 1]); break; //день
+          case 2: if (time[2] > 1 ) time[2]--; else time[2] = (time[1] == 2 && !(time[0] % 4)) ? 1 : 0 + pgm_read_byte(&daysInMonth[time[1] - 1]); break; //день
+          case 3: if (time[1] > 1) time[1]--; else time[1] = 12; time[2] = 1; break; //месяц
 
           //настройка года
           case 4: if (time[0] > 20) time[0]--; else time[0] = 50; break; //год
@@ -711,8 +774,8 @@ void settings_time(void)
           case 1: if (time[5] < 59) time[5]++; else time[5] = 0; break; //минуты
 
           //настройка даты
-          case 2: if (time[1] < 12) time[1]++; else time[1] = 1; time[2] = 1; break; //месяц
-          case 3: if (time[2] < pgm_read_byte(&daysInMonth[time[1] - 1]) + (time[1] == 2 && !(time[0] % 4)) ? 1 : 0) time[2]++; else time[2] = 1; break; //день
+          case 2: if (time[2] < pgm_read_byte(&daysInMonth[time[1] - 1]) + (time[1] == 2 && !(time[0] % 4)) ? 1 : 0) time[2]++; else time[2] = 1; break; //день
+          case 3: if (time[1] < 12) time[1]++; else time[1] = 1; time[2] = 1; break; //месяц
 
           //настройка года
           case 4: if (time[0] < 50) time[0]++; else time[0] = 21; break; //год
@@ -788,7 +851,7 @@ void settings_bright(void)
           break;
         case 1:
           indiPrint("SL", 0); //сон
-          if (!blink_data) indiPrintNum(_sleep_time, 3); //время сна
+          if (!blink_data) indiPrintNum(_sleep_time, 2, 2); //время сна
           break;
         case 2:
           indiPrint("AN", 0); //анимация
@@ -856,8 +919,7 @@ void settings_bright(void)
             if (_sleep_time > 3) _sleep_time--; else _sleep_time = 0;
             break;
           case 2: //настройка анимации
-            if (_anim_mode > 0) _anim_mode--; else _anim_mode = 4;
-            _animStart = 1; //разрешаем анимацию
+            if (_anim_mode > 0) _anim_mode--; else _anim_mode = sizeof(animTime);
             animFlip(); //анимция перелистывания
             break;
           case 3: //настройка подсветки
@@ -916,11 +978,10 @@ void settings_bright(void)
             flask_state = _flask_mode; //обновление стотояния колбы
             break;
           case 1: //настройка сна
-            if (!_sleep_time) _sleep_time = 3; else if (_sleep_time < 15) _sleep_time++; else _sleep_time = 0;
+            if (!_sleep_time) _sleep_time = 3; else if (_sleep_time < 15) _sleep_time++; else _sleep_time = 3;
             break;
           case 2: //настройка анимации
-            if (_anim_mode < 4) _anim_mode++; else _anim_mode = 0;
-            _animStart = 1; //разрешаем анимацию
+            if (_anim_mode < sizeof(animTime)) _anim_mode++; else _anim_mode = 0;
             animFlip(); //анимция перелистывания
             break;
           case 3: //настройка подсветки
@@ -1149,13 +1210,19 @@ void set_timer(void)
   }
 }
 //----------------------------------------------------------------------------------
-boolean changeBright(void) {
-  // установка яркости от времени суток
+boolean changeBright(void) { // установка яркости от времени суток
   if ((timeBright[0] > timeBright[1] && (time[4] >= timeBright[0] || time[4] < timeBright[1])) ||
       (timeBright[0] < timeBright[1] && time[4] >= timeBright[0] && time[4] < timeBright[1])) {
     return 0;
   } else {
     return 1;
+  }
+}
+//----------------------------------------------------------------------------------
+void dotFlash(void) {
+  if (!timer_dot) {
+    dot_state = !dot_state; //инвертируем точки
+    timer_dot = DOT_TIME;
   }
 }
 //-----------------------------Главный экран------------------------------------------------
@@ -1188,8 +1255,8 @@ void main_screen(void) //главный экран
         dot_state = 0; //выключаем точки
         break;
       case 2:
-        indiPrintNum(time[1], 0, 2, '0'); //вывод месяца
-        indiPrintNum(time[2], 2, 2, '0'); //вывод даты
+        indiPrintNum(time[2], 0, 2, '0'); //вывод даты
+        indiPrintNum(time[1], 2, 2, '0'); //вывод месяца
         dot_state = 1; //включаем точки
         break;
     }
@@ -1198,10 +1265,7 @@ void main_screen(void) //главный экран
   if (!_sleep) { //если не спим
     switch (_mode) {
       case 0: //режим часов
-        if (!timer_dot) {
-          dot_state = !dot_state; //инвертируем точки
-          timer_dot = DOT_TIME;
-        }
+        dotFlash(); //мигаем точками
         break;
 
       case 3: //режим таймера

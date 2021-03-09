@@ -89,12 +89,11 @@ void indiInit(void) //инициализация индикаторов
   for (uint8_t i = 0; i < 4; i++) {
     setPin(cathodeMask[i], 1);
     outPin(cathodeMask[i]);
-    indi_buf[i] = 0;
-    indi_dimm[i] = 127;
+    indi_dimm[i] = 128 + brightDefault[0];
   }
 
   for (byte i = 0; i < 2; i++) {
-    flash_dimm[i] = 127;
+    flash_dimm[i] = 128 + brightDefault[0];
   }
 
   OCR2A = indi_dimm[0];
@@ -109,8 +108,6 @@ void indiInit(void) //инициализация индикаторов
   TIMSK2 = 0b00000000; //отключаем прерывания Таймера2
 
   sei(); //разрешаем прерывания глобально
-
-  _INDI_ON; //запускаем генерацию
 }
 //---------------------------------Включение режима сна---------------------------------------
 void indiEnableSleep(void) //включение режима сна
