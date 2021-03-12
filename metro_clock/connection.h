@@ -71,7 +71,7 @@
 #define RTC_OFF   (bitClear(RTC_PORT, RTC_BIT))
 #define RTC_OUT   (bitSet((DDR_REG(RTC_PORT)), RTC_BIT))
 
-#define RTC_INIT  RTC_ON; RTC_OUT
+#define RTC_INIT  RTC_OFF; RTC_OUT
 
 //пин дополнительного питания RTC A1
 #define RTC_BAT_BIT   1 // A1
@@ -81,4 +81,4 @@
 #define RTC_BAT_OFF   (bitClear(RTC_BAT_PORT, RTC_BAT_BIT))
 #define RTC_BAT_OUT   (bitSet((DDR_REG(RTC_BAT_PORT)), RTC_BAT_BIT))
 
-#define RTC_BAT_INIT  RTC_BAT_OFF; RTC_BAT_OUT
+#define RTC_BAT_INIT  RTC_BAT_ON; RTC_BAT_OUT

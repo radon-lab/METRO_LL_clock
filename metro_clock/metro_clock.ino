@@ -1,5 +1,5 @@
 /*
-  Arduino IDE 1.8.13 версия прошивки 1.4.3 от 09.03.21
+  Arduino IDE 1.8.13 версия прошивки 1.4.4 от 12.03.21
   Специльно для проекта "Часы METRO LAST LIGHT"
   Исходник - https://github.com/radon-lab/METRO_LL_clock
   Автор Radon-lab.
@@ -211,9 +211,38 @@ void sleepMode(void) //режим сна
       _animStart = 1; //разрешаем анимацию
       TWI_disable(); //выключение TWI
       indiEnableSleep(); //выключаем дисплей
+#if !USE_LIGHT_SENS
+      if (!_timer_mode) sleepDeep(); //глубокий сон
+#endif
     }
   }
   else sleep_pwr(); //иначе сон
+}
+//-------------------------------Глубокий сон----------------------------------------------------
+void sleepDeep(void) //глубокий сон
+{
+  WDT_disable(); //выключение WDT
+
+  PCMSK2 = 0b00000101; //разрешаем прерывания от D0 и D2
+  PCICR = 0b00000100; //разрешаем внешнее прерывание PCINT2
+
+  while (1) {
+    sleep_pwr(); //глубокий сон
+
+    uint16_t startDellay = BTN_HOLD_TICK * 17; //устанавливаем таймер
+    while (!RIGHT_OUT || !LEFT_OUT) { //ждем пока отпустят кнопку
+      if (startDellay) { //если время не истекло
+        _delay_ms(1); //ждем 1мс
+        startDellay--; //отнимаем от таймера 1 мс
+      }
+    }
+    if (startDellay) {
+      PCICR = 0b00000000; //запрещаем прерывания от D0 и D2
+      sleepOut(); //выход из сна
+      WDT_enable(); //включение WDT
+      return; //выходим
+    }
+  }
 }
 //-------------------------------------Выход из сна--------------------------------------------------------
 void sleepOut(void) //выход из сна
