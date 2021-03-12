@@ -211,17 +211,13 @@ void sleepMode(void) //режим сна
       _animStart = 1; //разрешаем анимацию
       TWI_disable(); //выключение TWI
       indiEnableSleep(); //выключаем дисплей
-#if !USE_LIGHT_SENS
       if (!_timer_mode) sleepDeep(); //глубокий сон
-#endif
     }
   }
   else sleep_pwr(); //иначе сон
 }
 //-----------------------------Выход из глубокого сна--------------------------------------------
-#if !USE_LIGHT_SENS
 EMPTY_INTERRUPT(PCINT2_vect); //внешнее прерывание PCINT2
-#endif
 //-------------------------------Глубокий сон----------------------------------------------------
 void sleepDeep(void) //глубокий сон
 {
@@ -260,7 +256,9 @@ void sleepOut(void) //выход из сна
     case 2: indiSetBright(brightDefault[lightSens()]); break; //установка яркости индикаторов
   }
   indiDisableSleep(); //включаем дисплей
-  if (bat < MSG_BAT_P) _msg_type = 2; //если осталось мало заряда
+  _batCheck(); //проверяем заряд акб
+  if (bat < LOW_BAT_P) _msg_type = 3; //если батарея разряжена
+  else if (bat < MSG_BAT_P) _msg_type = 2; //если осталось мало заряда
 }
 //-------------------------------Оповещения таймера----------------------------------------------------
 void timerMessage(void) //оповещения таймера
@@ -313,23 +311,20 @@ void pwrDownMessage(void) //оповещения выключения
 {
   if (_sleep) sleepOut(); //выход из сна
   _msg_type = 0; //сбрасываем тип оповещения
-  _disableSleep = 1; //запрещаем сон
-  _flask_block = 1; //запрещаем управление колбой
   dot_state = 0; //выключаем точки
-  for (timer_millis = TIME_MSG_BAT; timer_millis && !check_keys();) {
-    data_convert(); //преобразование данных
-    if (!timer_dot) { //если таймер отработал
-      indiClr(); //очистка индикаторов
-      if (!flask_state) indiPrint("OFF", 1); //отрисовка сообщения разряженной батареи
+  indiPrint(" OFF", 0); //отрисовка сообщения разряженной батареи
+  uint16_t flask_tmr = 0; //таймер мигания колбой
+  for (uint16_t tmr = TIME_MSG_BAT; tmr; tmr--) { //ждем
+    if (!flask_tmr) { //если таймер отработал
       flask_state = !flask_state; //инвертируем колбу
-      timer_dot = 500; //устанавливаем таймер
+      flask_tmr = 500; //устанавливаем таймер
     }
+    else flask_tmr--; //отнимаем таймер мигания колбой
+    _delay_ms(1); //ждем 1мс
   }
   eeprom_update_block((void*)&time, 0, sizeof(time)); //записываем дату в память
   flask_state = _flask_mode; //обновление стотояния колбы
   _timer_sleep = 0; //сбрасываем таймер сна
-  _flask_block = 0; //разрешаем управление колбой
-  _disableSleep = 0; //разрешаем сон
   _PowerDown(); //выключаем питание
 }
 //-------------------------------Анимция перелистывания----------------------------------------------------
