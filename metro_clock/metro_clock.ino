@@ -1266,12 +1266,12 @@ void main__screen(void) //главный экран
     case 3: pwrDownMessage(); break; //оповещения выключения питания
   }
 
-  if (!_mode && !_sleep && _animStart) {
+  if (_animStart) {
     _animStart = 0; //завершаем анимацию
     _disableSleep = 1; //запрещаем сон
     animFlip(); //анимция перелистывания
     _timer_sleep = 0; //сбрасываем таймер сна
-    if (!_timer_mode || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
+    _disableSleep = 0; //разрешаем сон
   }
 
   if (!_scr) {
