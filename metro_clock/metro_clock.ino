@@ -767,8 +767,8 @@ void settings_time(void)
           break;
         case 2:
         case 3:
-          if (!blink_data || cur_mode == 2) indiPrintNum(time[2], 0, 2, '0'); //вывод даты
-          if (!blink_data || cur_mode == 3) indiPrintNum(time[1], 2, 2, '0'); //вывод месяца
+          if (!blink_data || cur_mode == 3) indiPrintNum(time[2], 0, 2, '0'); //вывод даты
+          if (!blink_data || cur_mode == 2) indiPrintNum(time[1], 2, 2, '0'); //вывод месяца
           break;
         case 4:
           indiPrint("20", 0); //вывод 2000
