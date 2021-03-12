@@ -208,7 +208,6 @@ void sleepMode(void) //режим сна
     waint_pwr(); //ожидание
     if (!_disableSleep && _sleep_time && _timer_sleep == _sleep_time) {
       _sleep = 1; //устанавливаем флаг активного сна
-      _animStart = 1; //разрешаем анимацию
       TWI_disable(); //выключение TWI
       indiEnableSleep(); //выключаем дисплей
       if (!_timer_mode) sleepDeep(); //глубокий сон
@@ -237,6 +236,7 @@ void sleepDeep(void) //глубокий сон
       }
     }
     if (startDellay) {
+      _timer_sleep = 0; //сбрасываем таймер сна
       PCICR = 0b00000000; //запрещаем прерывания PCINT2
       sleepOut(); //выход из сна
       WDT_enable(); //включение WDT
@@ -248,7 +248,10 @@ void sleepDeep(void) //глубокий сон
 void sleepOut(void) //выход из сна
 {
   _sleep = 0; //сбрасываем флаг активного сна
-  if (_mode != 3) _mode = 0; //если таймер не работает, переходим в режим часов
+  if (_mode != 3) {
+    _mode = 0; //если таймер не работает, переходим в режим часов
+    _animStart = 1; //разрешаем анимацию
+  }
   TWI_enable(); //включение TWI
   TimeGetDate(time); //синхронизируем время
   switch (_bright_mode) {
