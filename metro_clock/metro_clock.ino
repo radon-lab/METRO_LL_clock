@@ -125,7 +125,7 @@ int main(void)  //инициализация
   for (;;) //главная
   {
     data_convert(); //преобразование данных
-    main__screen(); //главный экран
+    main_screen(); //главный экран
   }
   return 0; //конец
 }
@@ -1258,7 +1258,7 @@ void dotFlash(void) {
   }
 }
 //-----------------------------Главный экран------------------------------------------------
-void main__screen(void) //главный экран
+void main_screen(void) //главный экран
 {
   switch (_msg_type) {
     case 1: timerMessage(); break; //оповещения таймера
