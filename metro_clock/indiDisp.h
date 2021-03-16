@@ -18,7 +18,7 @@ volatile uint8_t indi_state;
 #define fontbyte(x) pgm_read_byte(&indiFont[x])
 
 #define _INDI_ON  PRR &= ~(1 << 6); TIMSK2 = 0b00000111
-#define _INDI_OFF TCNT2 = 126; TIMSK2 = 0b00000000; PRR |= (1 << 6)
+#define _INDI_OFF TCNT2 = 128; TIMSK2 = 0b00000000; PRR |= (1 << 6)
 
 void indiInit(void);
 void indiEnableSleep(void);
@@ -48,31 +48,31 @@ void outPin(uint8_t pin) {
 //---------------------------------Генерация символов---------------------------------------
 ISR(TIMER2_OVF_vect) //генерация символов
 {
-  TCNT2 = 126;
-
-  uint8_t data = indi_buf[indi_state];
-  for (uint8_t c = 0; c < 7; c++)
-  {
-    setPin(anodeMask[c], data & 0x80);
-    data = data << 1;
-  }
-  OCR2A = indi_dimm[indi_state];
-  setPin(cathodeMask[indi_state], 0);
-
+  OCR2A = indi_dimm[indi_state]; //устанавливаем яркость индикаторов
   switch (indi_state) {
     case 0:
-      OCR2B = flash_dimm[0];
+      OCR2B = flash_dimm[0]; //устанавливаем яркость точек
       if (dot_state) DOT_ON; //включаем точки
       break;
     case 2:
-      OCR2B = flash_dimm[1];
+      OCR2B = flash_dimm[1]; //устанавливаем яркость колбы
       if (flask_state) FLASK_ON; //включаем колбу
       break;
   }
+  TCNT2 = 128; //сбрасываем счетчик таймера
+
+  uint8_t data = indi_buf[indi_state]; //заполняем буфер сигментов
+  for (uint8_t c = 0; c < 7; c++)
+  {
+    setPin(anodeMask[c], data & 0x80); //меняем значение сигментов
+    data = data << 1; //смещаем буфер
+  }
+
+  setPin(cathodeMask[indi_state], 0); //включаем индикатор
 }
 ISR(TIMER2_COMPA_vect) {
-  setPin(cathodeMask[indi_state], 1);
-  if (++indi_state > 3) indi_state = 0;
+  setPin(cathodeMask[indi_state], 1); //выключаем индикатор
+  if (++indi_state > 3) indi_state = 0; //переходим к следующему индикатору
 }
 ISR(TIMER2_COMPB_vect) {
   DOT_OFF; //выключаем точки
