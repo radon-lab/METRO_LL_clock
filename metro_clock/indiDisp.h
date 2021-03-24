@@ -182,22 +182,16 @@ void indiPrintNum(int16_t num, uint8_t indi, uint8_t length, char filler) //вы
   char buf[4];
   char st[4];
   boolean neg = false;
-  int8_t c = 0, f = 0;
+  uint8_t c = 0, f = 0;
 
-  if (num == 0)
+  if (!num)
   {
-    if (length != 0)
+    if (length)
     {
-      for (c = 0; c < (length - 1); c++)
-        st[c] = filler;
+      for (c = 0; c < (length - 1); c++) st[c] = filler;
       st[c] = 48;
-      st[c + 1] = 0;
     }
-    else
-    {
-      st[0] = 48;
-      st[1] = 0;
-    }
+    else st[0] = 48;
   }
   else
   {
@@ -213,28 +207,19 @@ void indiPrintNum(int16_t num, uint8_t indi, uint8_t length, char filler) //вы
       c++;
       num = (num - (num % 10)) / 10;
     }
-    buf[c] = 0;
 
-    if (neg)
-    {
-      st[0] = 45;
-    }
+    if (neg) st[0] = 45;
 
     if (length > (c + neg))
     {
-      for (int i = 0; i < (length - c - neg); i++)
+      for (uint8_t i = 0; i < (length - c - neg); i++)
       {
         st[i + neg] = filler;
         f++;
       }
     }
 
-    for (int i = 0; i < c; i++)
-    {
-      st[i + neg + f] = buf[c - i - 1];
-    }
-    st[c + neg + f] = 0;
-
+    for (uint8_t i = 0; i < c; i++) st[i + neg + f] = buf[c - i - 1];
   }
 
   indiPrint(st, indi);
