@@ -1,89 +1,81 @@
-uint8_t _requested_bytes = 0; //переменная хранит количество запрошенных и непрочитанных байт
-bool _address_nack = false; //Флаг для отслеживания ошибки при передаче адреса
-bool _data_nack = false; //Флаг для отслеживания ошибки при передаче данных
-bool _stop_after_request = true; //stop или restart после чтения последнего байта
+uint8_t _bytes_available = 0; //переменная хранит количество запрошенных и непрочитанных байт
+boolean _address_error = 0; //Флаг для отслеживания ошибки при передаче адреса
+boolean _data_error = 0; //Флаг для отслеживания ошибки при передаче данных
+boolean _stopWire = 1; //остановка или перезапуск шины после чтения последнего байта
 
-void WireBegin(void); //инициализация шины
-void WireBeginTransmission(uint8_t address); //открыть соединение (для записи данных)
-uint8_t WireEndTransmission(bool stop); //закрыть соединение , произвести stop или restart (по умолчанию - stop)
-uint8_t WireEndTransmission(void); //закрыть соединение , произвести stop
-void WireWrite(uint8_t data); //отправить в шину байт данных , отправка производится сразу , формат - byte "unsigned char"
-void WireRequestFrom(uint8_t address , uint8_t length , bool stop); //открыть соединение и запросить данные от устройства, отпустить или удержать шину
-void WireRequestFrom(uint8_t address , uint8_t length); //открыть соединение и запросить данные от устройства, отпустить шину
-uint8_t WireRead(void); //прочитать байт
-void WireStart(void); //сервисная функция с нее начинается любая работа с шиной
-void WireStop(void); //сервисная функция ей заканчивается работа с шиной
+void WireRequestFrom(uint8_t address, uint8_t length, boolean stop = 1); //запрос пакета данных
+uint8_t WireEndTransmission(boolean stop = 1); //завершение передачи
 
-
-void WireBegin() { //Инициализация шины в роли master
-  pinMode(SDA, INPUT_PULLUP); //Подтяжка шины
-  pinMode(SCL, INPUT_PULLUP); //Подтяжка шины
-  TWBR = 72; //Стандартная скорость - 100kHz
-  TWSR = 0; //Делитель - /1 , статус - 0;
+//--------------------------------------Инициализация Wire------------------------------------------
+void WireInit(void) //инициализация Wire
+{ 
+  PORTC |= 0b00110000; //подтяжка SDA и SCL
+  DDRC &= 0b11001111; //устанавливаем SDA и SCL как входы
+  TWBR = 72; //устанавливаем скорость 100kHz
+  TWSR = 0; //устанавливаем делитель 1, статус 0;
 }
-
-void WireBeginTransmission(uint8_t address) { //Начать передачу (для записи данных)
-  WireStart(); //Старт
-  WireWrite(address << 1); //Отправка slave - устройству адреса с битом "write"
+//--------------------------------------Запуск шины Wire------------------------------------------
+void WireStart(void) //запуск шины Wire
+{ 
+  TWCR = _BV(TWSTA) | _BV(TWEN) | _BV(TWINT); //включаем Wire, отправляем команду старт и устанавливаем флаг выполнить задачу
+  while (!(TWCR & _BV(TWINT))); //ожидание завершения
 }
-
-uint8_t WireEndTransmission(void) { //Завершить передачу и отпустить шину
-  return WireEndTransmission(true);
+//--------------------------------------Остановка шины Wire------------------------------------------
+void WireStop(void) //остановка шины Wire
+{ 
+  TWCR = _BV(TWSTO) | _BV(TWEN) | _BV(TWINT); //включаем Wire, отправляем команду стоп и устанавливаем флаг выполнить задачу
 }
-
-uint8_t WireEndTransmission(bool stop) { //Завершить передачу (после записи данных)
-  if (stop) WireStop(); //Если задано stop или аргумент пуст - отпустить шину
-  else WireStart(); //Иначе - restart (другой master на шине не сможет влезть между сообщениями)
-  if (_address_nack) { //Если нет ответа при передаче адреса
-    _address_nack = false; //Обнуляем оба флага
-    _data_nack = false; //Обнуляем оба флага
-    return 2; //Возвращаем '2'
-  } if (_data_nack) { //Если нет ответа при передаче данных
-    _address_nack = false; //Обнуляем оба флага
-    _data_nack = false; //Обнуляем оба флага
-    return 3; //Возвращаем '2'
-  } return 0; //Если все ОК - возвращаем '0'
+//--------------------------------------Отправка байта------------------------------------------
+void WireWrite(uint8_t data) //отправка байта
+{ 
+  TWDR = data; //записать данные в data регистр
+  TWCR = _BV(TWEN) | _BV(TWINT); //запустить передачу
+  while (!(TWCR & _BV(TWINT))); //дождаться окончания
+  uint8_t _bus_status = TWSR & 0xF8; //чтение статуса шины
+  if (_bus_status == 0x20) _address_error = 1; //если нет ответа при передаче адреса
+  if (_bus_status == 0x30) _data_error = 1; //если нет ответа при передаче данных
 }
-
-void WireWrite(uint8_t data) { //Прямая отправка байта на шину
-  TWDR = data; //Записать данные в data - регистр
-  TWCR = _BV(TWEN) | _BV(TWINT); //Запустить передачу
-  while (!(TWCR & _BV(TWINT))); //Дождаться окончания
-  uint8_t _bus_status = TWSR & 0xF8; //Чтение статуса шины
-  if (_bus_status == 0x20) _address_nack = true; //SLA + W + NACK ? - нет ответа при передаче адреса
-  if (_bus_status == 0x30) _data_nack = true; //BYTE + NACK ? - нет ответа при передаче данных
-}
-
-uint8_t WireRead() { // Прямое чтение байта из шины после запроса
-  if (--_requested_bytes) { //Если байт не последний
-    TWCR = _BV(TWEN) | _BV(TWINT) | _BV(TWEA); //Запустить чтение шины (с подтверждением "ACK")
-    while (!(TWCR & _BV(TWINT))); //Дождаться окончания приема данных
-    return TWDR; //Вернуть принятые данные , это содержимое data - регистра
+//--------------------------------------Чтение запрошенного байта------------------------------------------
+uint8_t WireRead(void) //чтение запрошенного байта
+{ 
+  if (_bytes_available > 0) { //если байт не последний
+    _bytes_available--; //уменьшаем значение доступных байт
+    TWCR = _BV(TWEN) | _BV(TWINT) | _BV(TWEA); //запустить чтение шины с подтверждением ACK
+    while (!(TWCR & _BV(TWINT))); //дождаться окончания приема данных
+    return TWDR; //вернуть принятые данные , это содержимое data - регистра
   }
-  _requested_bytes = 0; //Если читаем последний байт
-  TWCR = _BV(TWEN) | _BV(TWINT); //Запустить чтение шины (БЕЗ подтверждения "NACK")
-  while (!(TWCR & _BV(TWINT))); //Дождаться окончания приема данных
-  if (_stop_after_request) WireStop(); //Если в requestFrom не задан аргумент stop , или stop задан как true - отпустить шину
-  else WireStart(); //Иначе - restart (другой master на шине не сможет влезть между сообщениями)
-  return TWDR; //Вернуть принятый ранее байт из data - регистра
+  TWCR = _BV(TWEN) | _BV(TWINT); //запустить чтение шины без подтверждения NACK
+  while (!(TWCR & _BV(TWINT))); //дождаться окончания приема данных
+  if (_stopWire) WireStop(); //если стоп, отпустить шину
+  else WireStart(); //иначе перезапуск
+  return TWDR; //вернуть принятый байт
 }
-
-void WireRequestFrom(uint8_t address , uint8_t length) { //Запрос n-го кол-ва байт от ведомого устройства и отпускание шины
-  WireRequestFrom(address , length , true);
+//--------------------------------------Запуск передачи------------------------------------------
+void WireBeginTransmission(uint8_t address) //запуск передачи
+{
+  WireStart(); //старт шины wire
+  WireWrite(address << 1); //отправка устройству адреса с битом write
 }
-
-void WireRequestFrom(uint8_t address , uint8_t length , bool stop) { //Запрос n-го кол-ва байт от ведомого устройства (Читайте все байты сразу!!!)
-  _stop_after_request = stop; //stop или restart после чтения последнего байта
-  _requested_bytes = length; //Записать в переменную количество запрошенных байт
-  WireStart(); //Начать работу на шине
-  WireWrite((address << 1) | 0x1); //Отправить устройству адрес + бит "read"
+//--------------------------------------Завершение передачи------------------------------------------
+uint8_t WireEndTransmission(boolean stop) //завершение передачи
+{ 
+  if (stop) WireStop(); //если задано стоп, отпустить шину
+  else WireStart(); //иначе перезапуск
+  if (_address_error) { //если нет ответа при передаче адреса
+    _address_error = _data_error = 0; //сбрасываем оба флага
+    return 2; //возвращаем 2
+  }
+  if (_data_error) { //если нет ответа при передаче данных
+    _address_error = _data_error = 0; //сбрасываем оба флага
+    return 3; //возвращаем 2
+  } 
+  return 0; //если ошибок нет, возвращаем 0
 }
-
-void WireStart() { //сервисная функция с нее начинается любая работа с шиной
-  TWCR = _BV(TWSTA) | _BV(TWEN) | _BV(TWINT); //start + TwoWire enable + установка флага "выполнить задачу"
-  while (!(TWCR & _BV(TWINT))); //Ожидание завершения
-}
-
-void WireStop() { //сервисная функция ей заканчивается работа с шиной
-  TWCR = _BV(TWSTO) | _BV(TWEN) | _BV(TWINT); //stop + TwoWire enable + установка флага "выполнить задачу"
+//--------------------------------------Запрос пакета данных------------------------------------------
+void WireRequestFrom(uint8_t address, uint8_t length, boolean stop) //запрос пакета данных
+{ 
+  _stopWire = stop; //stop или restart после чтения последнего байта
+  _bytes_available = length; //записать в переменную количество запрошенных байт
+  WireStart(); //начать работу на шине
+  WireWrite((address << 1) | 0x1); //отправка устройству адреса с битом read
 }

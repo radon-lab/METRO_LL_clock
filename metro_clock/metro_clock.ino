@@ -1,5 +1,5 @@
 /*
-  Arduino IDE 1.8.13 версия прошивки 1.4.4 от 24.03.21
+  Arduino IDE 1.8.13 версия прошивки 1.4.4 от 09.04.21
   Специльно для проекта "Часы METRO LAST LIGHT"
   Исходник - https://github.com/radon-lab/METRO_LL_clock
   Автор Radon-lab.
@@ -15,7 +15,7 @@
 #include "config.h"
 #include "connection.h"
 #include "indiDisp.h"
-#include "DS1307.h"
+#include "RTC.h"
 
 //переменные обработки кнопок
 uint8_t btn_tmr; //таймер тиков обработки
@@ -605,7 +605,7 @@ void ADC_disable(void) //выключение ADC
 void TWI_enable(void) //включение TWI
 {
   PRR &= ~ (1 << 7); //включаем питание i2c
-  WireBegin(); //инициализация шины i2c
+  WireInit(); //инициализация шины i2c
 }
 //-------------------------------Выключение TWI---------------------------------------------------
 void TWI_disable(void) //выключение TWI

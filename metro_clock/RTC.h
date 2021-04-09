@@ -28,8 +28,7 @@ void TimeSetDate(const uint8_t *values) // year, month, dayOfMonth, dayOfWeek, h
   WireBeginTransmission(DS1307_ADDRESS);
   WireWrite(0x00);
 
-  //Start sending the new values
-  WireWrite(fromDecimalToBCD(values[6]));
+  WireWrite(fromDecimalToBCD(values[6])); //отправляем время
   WireWrite(fromDecimalToBCD(values[5]));
   WireWrite(fromDecimalToBCD(values[4]));
   WireWrite(fromDecimalToBCD(values[3]));
@@ -38,7 +37,7 @@ void TimeSetDate(const uint8_t *values) // year, month, dayOfMonth, dayOfWeek, h
   WireWrite(fromDecimalToBCD(values[0]));
 
   WireWrite(0x00);
-  WireEndTransmission();
+  if (WireEndTransmission() != 0) return; //если нет ответа выходим
 
   RTC_BAT_ON;
   RTC_OFF;
@@ -51,7 +50,7 @@ void TimeGetDate(uint8_t *values) // year, month, dayOfMonth, dayOfWeek, hour, m
   
   WireBeginTransmission(DS1307_ADDRESS);
   WireWrite(0x00);
-  WireEndTransmission();
+  if (WireEndTransmission() != 0) return; //если нет ответа выходим
   WireRequestFrom(DS1307_ADDRESS, 7);
 
   for (int i = 6; i >= 0; i--) {
