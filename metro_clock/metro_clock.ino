@@ -48,6 +48,8 @@ uint32_t timer_millis; //таймер отсчета миллисекунд
 uint32_t timer_dot; //таймер отсчета миллисекунд для точек
 
 struct Settings1 {
+  uint8_t timeBright[2] = {DEFAULT_TIME_NIGHT, DEFAULT_TIME_DAY}; //время подсветки по умолчанию(ночь, день)(0..23)(ч)
+  uint8_t indiBright[2] = {DEFAULT_BRIGHT_NIGHT, DEFAULT_BRIGHT_DAY}; //яркость подсветки по умолчанию(ночь, день)(0..4)(1..5 в меню)
   uint8_t flask_mode = DEFAULT_FLASK_MODE; //текущий режим свечения колбы
   uint8_t bright_mode = DEFAULT_BRIGHT_MODE; //текущий режим подсветки
   uint8_t bright_levle = DEFAULT_BRIGHT; //текущая яркость подсветки
@@ -58,8 +60,8 @@ struct Settings1 {
 } mainSettings;
 
 struct Settings2 {
-  boolean timer_mode = 0; //режим работы таймера(0 - таймер | 1 - секундомер)
-  uint8_t timer_preset = 0; //текущий номер выбранного пресета таймера
+  boolean timer_mode = DEFAULT_MODE_TIMER; //режим работы таймера
+  uint8_t timer_preset = DEFAULT_PRESET_TIMER; //текущий номер выбранного пресета таймера
   uint8_t timer_blink = DEFAULT_BLINK_TIMER; //время мигания таймера
 } timerSettings;
 
@@ -85,23 +87,19 @@ int main(void)  //инициализация
   if (eeprom_read_byte((uint8_t*)110) != 110) { //если первый запуск, восстанавливаем из переменных
     eeprom_update_byte((uint8_t*)110, 110); //делаем метку
     eeprom_update_block((void*)&timeDefault, (void*)0, sizeof(timeDefault)); //записываем дату по умолчанию в память
-    eeprom_update_block((void*)&timeBright, (void*)7, sizeof(timeBright)); //записываем время в память
-    eeprom_update_block((void*)&indiBright, (void*)9, sizeof(indiBright)); //записываем яркость в память
-    eeprom_update_block((void*)&mainSettings, (void*)11, sizeof(mainSettings)); //записываем основные настройки в память
+    eeprom_update_block((void*)&mainSettings, (void*)7, sizeof(mainSettings)); //записываем основные настройки в память
     eeprom_update_block((void*)&timerSettings, (void*)18, sizeof(timerSettings)); //записываем настройки таймера в память
 
   }
   else {
-    eeprom_read_block((void*)&timeBright, (void*)7, sizeof(timeBright)); //считываем время из памяти
-    eeprom_read_block((void*)&indiBright, (void*)9, sizeof(indiBright)); //считываем яркость из памяти
-    eeprom_read_block((void*)&mainSettings, (void*)11, sizeof(mainSettings)); //считываем основные настройки из памяти
+    eeprom_read_block((void*)&mainSettings, (void*)7, sizeof(mainSettings)); //считываем основные настройки из памяти
     eeprom_read_block((void*)&timerSettings, (void*)18, sizeof(timerSettings)); //считываем настройки таймера из памяти
   }
 
   if (time[0] < 21 || time[0] > 50) { //если пропадало питание
     indiPrint("INIT", 0);
-    eeprom_read_block((void*)&time, 0, sizeof(time)); //считываем дату из памяти
-    TimeSetDate(time); //устанавливаем новое время
+    eeprom_read_block((void*)&timeDefault, 0, sizeof(timeDefault)); //считываем дату из памяти
+    TimeSetDate(timeDefault); //устанавливаем новое время
   }
   for (timer_millis = 2000; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
 
@@ -110,7 +108,7 @@ int main(void)  //инициализация
 
   switch (mainSettings.bright_mode) {
     case 0: indiSetBright(brightDefault[mainSettings.bright_levle]); break; //установка яркости индикаторов
-    case 1: indiSetBright(brightDefault[indiBright[changeBright()]]); break; //установка яркости индикаторов
+    case 1: indiSetBright(brightDefault[mainSettings.indiBright[changeBright()]]); break; //установка яркости индикаторов
     case 2: indiSetBright(brightDefault[lightSens()]); break; //установка яркости индикаторов
   }
 
@@ -191,7 +189,7 @@ void data_convert(void) //преобразование данных
             if (++time[4] > 23) { //часы
               time[4] = 0;
             }
-            if (!_bright_block && mainSettings.bright_mode == 1) indiSetBright(brightDefault[indiBright[changeBright()]]); //установка яркости индикаторов
+            if (!_bright_block && mainSettings.bright_mode == 1) indiSetBright(brightDefault[mainSettings.indiBright[changeBright()]]); //установка яркости индикаторов
           }
           TimeGetDate(time); //синхронизируем время
         }
@@ -259,7 +257,7 @@ void sleepOut(void) //выход из сна
   TWI_enable(); //включение TWI
   TimeGetDate(time); //синхронизируем время
   switch (mainSettings.bright_mode) {
-    case 1: indiSetBright(brightDefault[indiBright[changeBright()]]); break; //установка яркости индикаторов
+    case 1: indiSetBright(brightDefault[mainSettings.indiBright[changeBright()]]); break; //установка яркости индикаторов
     case 2: indiSetBright(brightDefault[lightSens()]); break; //установка яркости индикаторов
   }
   indiDisableSleep(); //включаем дисплей
@@ -646,7 +644,7 @@ void _PowerDown(void)
 
           switch (mainSettings.bright_mode) {
             case 0: indiSetBright(brightDefault[mainSettings.bright_levle]); break; //установка яркости индикаторов
-            case 1: indiSetBright(brightDefault[indiBright[changeBright()]]); break; //установка яркости индикаторов
+            case 1: indiSetBright(brightDefault[mainSettings.indiBright[changeBright()]]); break; //установка яркости индикаторов
             case 2: indiSetBright(brightDefault[lightSens()]); break; //установка яркости индикаторов
           }
 
@@ -850,7 +848,7 @@ void settings_time(void)
 
       case 4: //right hold
         eeprom_update_block((void*)&time, (void*)0, sizeof(time)); //записываем дату в память
-        if (mainSettings.bright_mode == 2) indiSetBright(brightDefault[indiBright[changeBright()]]); //установка яркости индикаторов
+        if (mainSettings.bright_mode == 2) indiSetBright(brightDefault[mainSettings.indiBright[changeBright()]]); //установка яркости индикаторов
         TimeSetDate(time); //обновляем время
         dot_state = 0; //выключаем точку
         indiClr(); //очистка индикаторов
@@ -876,7 +874,7 @@ void settings_bright(void)
   indiClr(); //очищаем индикаторы
   indiPrint("BRI", 0);
   for (timer_millis = TIME_MSG; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
-  if (mainSettings.bright_mode == 1) indiSetBright(brightDefault[indiBright[changeBright()]]); //установка яркости индикаторов
+  if (mainSettings.bright_mode == 1) indiSetBright(brightDefault[mainSettings.indiBright[changeBright()]]); //установка яркости индикаторов
 
   //настройки
   while (1) {
@@ -911,7 +909,7 @@ void settings_bright(void)
 
             case 1: //подсветка день/ночь
               indiPrint("N", 0);
-              if (!blink_data) indiPrintNum(timeBright[0], 2, 2, '0'); //вывод время включения ночной подсветки
+              if (!blink_data) indiPrintNum(mainSettings.timeBright[0], 2, 2, '0'); //вывод время включения ночной подсветки
               break;
 
             case 2: //авто-подсветка
@@ -932,17 +930,17 @@ void settings_bright(void)
               break;
             case 1:
               indiPrint("L", 0); //уровень ручной подсветки
-              if (!blink_data) indiPrintNum(indiBright[0] + 1, 3); //вывод яркости ночь
+              if (!blink_data) indiPrintNum(mainSettings.indiBright[0] + 1, 3); //вывод яркости ночь
               break;
           }
           break;
         case 6:
           indiPrint("D", 0);
-          if (!blink_data) indiPrintNum(timeBright[1], 2, 2, '0'); //вывод время включения дневной подсветки
+          if (!blink_data) indiPrintNum(mainSettings.timeBright[1], 2, 2, '0'); //вывод время включения дневной подсветки
           break;
         case 7:
           indiPrint("L", 0); //вывод 2000
-          if (!blink_data) indiPrintNum(indiBright[1] + 1, 3); //вывод яркости день
+          if (!blink_data) indiPrintNum(mainSettings.indiBright[1] + 1, 3); //вывод яркости день
           break;
       }
       blink_data = !blink_data; //мигание сигментами
@@ -967,7 +965,7 @@ void settings_bright(void)
             if (mainSettings.bright_mode > 0) mainSettings.bright_mode--; else mainSettings.bright_mode = 1 + USE_LIGHT_SENS;
             switch (mainSettings.bright_mode) {
               case 0: indiSetBright(brightDefault[mainSettings.bright_levle]); break; //установка яркости индикаторов
-              case 1: indiSetBright(brightDefault[indiBright[changeBright()]]); break; //установка яркости индикаторов
+              case 1: indiSetBright(brightDefault[mainSettings.indiBright[changeBright()]]); break; //установка яркости индикаторов
               case 2: indiSetBright(brightDefault[lightSens()]); break; //установка яркости индикаторов
             }
             break;
@@ -981,7 +979,7 @@ void settings_bright(void)
                 break;
 
               case 1: //часы ночь
-                if (timeBright[0] > 0) timeBright[0]--; else timeBright[0] = 23; //часы
+                if (mainSettings.timeBright[0] > 0) mainSettings.timeBright[0]--; else mainSettings.timeBright[0] = 23; //часы
                 break;
 
               case 2: //авто-подсветка
@@ -992,8 +990,8 @@ void settings_bright(void)
           case 5:
             switch (mainSettings.bright_mode) {
               case 1:
-                if (indiBright[0] > 0) indiBright[0]--; else indiBright[0] = 4;
-                indiSetBright(brightDefault[indiBright[0]]); //установка яркости индикаторов
+                if (mainSettings.indiBright[0] > 0) mainSettings.indiBright[0]--; else mainSettings.indiBright[0] = 4;
+                indiSetBright(brightDefault[mainSettings.indiBright[0]]); //установка яркости индикаторов
                 break;
 
               case 2:
@@ -1003,10 +1001,10 @@ void settings_bright(void)
             break;
 
           //настройка дневной подсветки
-          case 6: if (timeBright[1] > 0) timeBright[1]--; else timeBright[1] = 23; break; //часы
+          case 6: if (mainSettings.timeBright[1] > 0) mainSettings.timeBright[1]--; else mainSettings.timeBright[1] = 23; break; //часы
           case 7:
-            if (indiBright[1] > 0) indiBright[1]--; else indiBright[1] = 4;
-            indiSetBright(brightDefault[indiBright[1]]); //установка яркости индикаторов
+            if (mainSettings.indiBright[1] > 0) mainSettings.indiBright[1]--; else mainSettings.indiBright[1] = 4;
+            indiSetBright(brightDefault[mainSettings.indiBright[1]]); //установка яркости индикаторов
             break;
         }
         _scr = blink_data = 0; //сбрасываем флаги
@@ -1029,7 +1027,7 @@ void settings_bright(void)
             if (mainSettings.bright_mode < 1 + USE_LIGHT_SENS) mainSettings.bright_mode++; else mainSettings.bright_mode = 0;
             switch (mainSettings.bright_mode) {
               case 0: indiSetBright(brightDefault[mainSettings.bright_levle]); break; //установка яркости индикаторов
-              case 1: indiSetBright(brightDefault[indiBright[changeBright()]]); break; //установка яркости индикаторов
+              case 1: indiSetBright(brightDefault[mainSettings.indiBright[changeBright()]]); break; //установка яркости индикаторов
               case 2: indiSetBright(brightDefault[lightSens()]); break; //установка яркости индикаторов
             }
             break;
@@ -1043,7 +1041,7 @@ void settings_bright(void)
                 break;
 
               case 1: //часы ночь
-                if (timeBright[0] < 23) timeBright[0]++; else timeBright[0] = 0; //часы
+                if (mainSettings.timeBright[0] < 23) mainSettings.timeBright[0]++; else mainSettings.timeBright[0] = 0; //часы
                 break;
 
               case 2: //авто-подсветка
@@ -1054,8 +1052,8 @@ void settings_bright(void)
           case 5:
             switch (mainSettings.bright_mode) {
               case 1:
-                if (indiBright[0] < 4) indiBright[0]++; else indiBright[0] = 0;
-                indiSetBright(brightDefault[indiBright[0]]); //установка яркости индикаторов
+                if (mainSettings.indiBright[0] < 4) mainSettings.indiBright[0]++; else mainSettings.indiBright[0] = 0;
+                indiSetBright(brightDefault[mainSettings.indiBright[0]]); //установка яркости индикаторов
                 break;
 
               case 2:
@@ -1065,10 +1063,10 @@ void settings_bright(void)
             break;
 
           //настройка дневной подсветки
-          case 6: if (timeBright[1] < 23) timeBright[1]++; else timeBright[1] = 0; break; //часы
+          case 6: if (mainSettings.timeBright[1] < 23) mainSettings.timeBright[1]++; else mainSettings.timeBright[1] = 0; break; //часы
           case 7:
-            if (indiBright[1] < 4) indiBright[1]++; else indiBright[1] = 0;
-            indiSetBright(brightDefault[indiBright[1]]); //установка яркости индикаторов
+            if (mainSettings.indiBright[1] < 4) mainSettings.indiBright[1]++; else mainSettings.indiBright[1] = 0;
+            indiSetBright(brightDefault[mainSettings.indiBright[1]]); //установка яркости индикаторов
             break;
         }
         _scr = blink_data = 0; //сбрасываем флаги
@@ -1081,7 +1079,7 @@ void settings_bright(void)
             indiClr(); //очистка индикаторов
             indiPrint("FLS", 0); //колба
             for (timer_millis = TIME_MSG_PNT; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
-            if (mainSettings.bright_mode == 1) indiSetBright(brightDefault[indiBright[changeBright()]]); //установка яркости индикаторов
+            if (mainSettings.bright_mode == 1) indiSetBright(brightDefault[mainSettings.indiBright[changeBright()]]); //установка яркости индикаторов
             _bright_block = 0; //разрешаем управление подсветкой
             break;
 
@@ -1117,7 +1115,7 @@ void settings_bright(void)
               for (timer_millis = TIME_MSG_PNT; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
             }
             else {
-              indiSetBright(brightDefault[indiBright[0]]);
+              indiSetBright(brightDefault[mainSettings.indiBright[0]]);
               _bright_block = 1; //запрещаем управление подсветкой
             }
             break;
@@ -1131,7 +1129,7 @@ void settings_bright(void)
             break;
 
           case 7:
-            indiSetBright(brightDefault[indiBright[1]]);
+            indiSetBright(brightDefault[mainSettings.indiBright[1]]);
             _bright_block = 1; //запрещаем управление подсветкой
             break;
         }
@@ -1139,13 +1137,11 @@ void settings_bright(void)
         break;
 
       case 4: //right hold
-        eeprom_update_block((void*)&timeBright, (void*)7, sizeof(timeBright)); //записываем время в память
-        eeprom_update_block((void*)&indiBright, (void*)9, sizeof(indiBright)); //записываем яркость в память
-        eeprom_update_block((void*)&mainSettings, (void*)11, sizeof(mainSettings)); //записываем основные настройки в память
+        eeprom_update_block((void*)&mainSettings, (void*)7, sizeof(mainSettings)); //записываем основные настройки в память
 
         switch (mainSettings.bright_mode) {
           case 0: indiSetBright(brightDefault[mainSettings.bright_levle]); break; //установка яркости индикаторов
-          case 1: indiSetBright(brightDefault[indiBright[changeBright()]]); break; //установка яркости индикаторов
+          case 1: indiSetBright(brightDefault[mainSettings.indiBright[changeBright()]]); break; //установка яркости индикаторов
           case 2: indiSetBright(brightDefault[lightSens()]); break; //установка яркости индикаторов
         }
 
@@ -1261,8 +1257,8 @@ void set_timer(void)
 }
 //----------------------------------------------------------------------------------
 boolean changeBright(void) { // установка яркости от времени суток
-  if ((timeBright[0] > timeBright[1] && (time[4] >= timeBright[0] || time[4] < timeBright[1])) ||
-      (timeBright[0] < timeBright[1] && time[4] >= timeBright[0] && time[4] < timeBright[1])) {
+  if ((mainSettings.timeBright[0] > mainSettings.timeBright[1] && (time[4] >= mainSettings.timeBright[0] || time[4] < mainSettings.timeBright[1])) ||
+      (mainSettings.timeBright[0] < mainSettings.timeBright[1] && time[4] >= mainSettings.timeBright[0] && time[4] < mainSettings.timeBright[1])) {
     return 0;
   } else {
     return 1;
