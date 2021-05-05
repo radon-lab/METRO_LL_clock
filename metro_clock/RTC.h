@@ -1,14 +1,4 @@
-#include "wire.h"
-
-#include <inttypes.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-
 #define DS1307_ADDRESS 0x68
-
-void TimeGetDate(uint8_t *values);
-void TimeSetDate(const uint8_t *values);
 
 uint8_t fromDecimalToBCD(uint8_t decimalValue)
 {
@@ -22,11 +12,11 @@ uint8_t fromBCDToDecimal(uint8_t BCDValue)
 
 void TimeSetDate(const uint8_t *values) // year, month, dayOfMonth, dayOfWeek, hour, minute, second
 {
-  RTC_ON;
-  RTC_BAT_OFF;
+  RTC_ON; //включаем питание РТС
+  RTC_BAT_OFF; //выключаем питание батареи
 
-  WireBeginTransmission(DS1307_ADDRESS);
-  WireWrite(0x00);
+  WireBeginTransmission(DS1307_ADDRESS); //начало передачи
+  WireWrite(0x00); //устанавливаем адрес записи
 
   WireWrite(fromDecimalToBCD(values[6])); //отправляем время
   WireWrite(fromDecimalToBCD(values[5]));
@@ -39,18 +29,18 @@ void TimeSetDate(const uint8_t *values) // year, month, dayOfMonth, dayOfWeek, h
   WireWrite(0x00);
   WireEnd(); //конец передачи
 
-  RTC_BAT_ON;
-  RTC_OFF;
+  RTC_BAT_ON; //включаем питание батареи
+  RTC_OFF; //выключаем питание РТС
 }
 
 void TimeGetDate(uint8_t *values) // year, month, dayOfMonth, dayOfWeek, hour, minute, second
 {
-  RTC_ON;
-  RTC_BAT_OFF;
+  RTC_ON; //включаем питание РТС
+  RTC_BAT_OFF; //выключаем питание батареи
 
   if (WireRequestFrom(DS1307_ADDRESS, 0x00)) return; //запрашиваем чтение данных, если нет ответа выходим
 
-  values[6] = WireRead();
+  values[6] = WireRead(); //получаем время
   values[5] = WireRead();
   values[4] = WireRead();
   values[3] = WireRead();
@@ -58,6 +48,6 @@ void TimeGetDate(uint8_t *values) // year, month, dayOfMonth, dayOfWeek, hour, m
   values[1] = WireRead();
   values[0] = WireReadEndByte();
 
-  RTC_BAT_ON;
-  RTC_OFF;
+  RTC_BAT_ON; //включаем питание батареи
+  RTC_OFF; //выключаем питание РТС
 }

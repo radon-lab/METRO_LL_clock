@@ -1,5 +1,5 @@
 /*
-  Arduino IDE 1.8.13 версия прошивки 1.4.4 от 30.04.21
+  Arduino IDE 1.8.13 версия прошивки 1.4.5 от 05.05.21
   Специльно для проекта "Часы METRO LAST LIGHT"
   Исходник - https://github.com/radon-lab/METRO_LL_clock
   Автор Radon-lab.
@@ -15,6 +15,7 @@
 #include "config.h"
 #include "connection.h"
 #include "indiDisp.h"
+#include "wire.h"
 #include "RTC.h"
 
 //переменные обработки кнопок
@@ -29,7 +30,8 @@ uint8_t _anim_mode = DEFAUL_ANIM_MODE; //текущий режим анимац�
 uint8_t _msg_type = 0; //тип оповещения
 boolean _animStart = 1; //флаг анимации
 
-boolean _timer_mode = 0; //текущий режим таймера(0-выкл | 1-вкл)
+boolean _timer_start = 0; //флаг работы таймера(0 - выкл | 1 - вкл)
+uint8_t _timer_mode = 0; //режим работы таймера(0 - таймер | 1 - секундомер)
 uint8_t _timer_preset = 0; //текущий номер выбранного пресета таймера
 uint8_t _timer_blink = DEFAUL_BLINK_TIMER; //время мигания таймера
 uint16_t _timer_secs = 0; //установленное время таймера
@@ -78,9 +80,9 @@ int main(void)  //инициализация
 
   if (eeprom_read_byte((uint8_t*)100) != 100) { //если первый запуск, восстанавливаем из переменных
     eeprom_update_byte((uint8_t*)100, 100); //делаем метку
-    eeprom_update_block((void*)&timeDefault, 0, sizeof(timeDefault)); //записываем дату по умолчанию в память
-    eeprom_update_block((void*)&timeBright, 7, sizeof(timeBright)); //записываем время в память
-    eeprom_update_block((void*)&indiBright, 9, sizeof(indiBright)); //записываем яркость в память
+    eeprom_update_block((void*)&timeDefault, (void*)0, sizeof(timeDefault)); //записываем дату по умолчанию в память
+    eeprom_update_block((void*)&timeBright, (void*)7, sizeof(timeBright)); //записываем время в память
+    eeprom_update_block((void*)&indiBright, (void*)9, sizeof(indiBright)); //записываем яркость в память
     eeprom_update_byte((uint8_t*)11, _flask_mode); //записываем в память режим колбы
     eeprom_update_byte((uint8_t*)12, _bright_mode); //записываем в память режим подсветки
     eeprom_update_byte((uint8_t*)13, _bright_levle); //записываем в память уровень подсветки
@@ -92,8 +94,8 @@ int main(void)  //инициализация
     eeprom_update_byte((uint8_t*)19, _anim_mode); //записываем в память режим анимации
   }
   else {
-    eeprom_read_block((void*)&timeBright, 7, sizeof(timeBright)); //считываем время из памяти
-    eeprom_read_block((void*)&indiBright, 9, sizeof(indiBright)); //считываем яркость из памяти
+    eeprom_read_block((void*)&timeBright, (void*)7, sizeof(timeBright)); //считываем время из памяти
+    eeprom_read_block((void*)&indiBright, (void*)9, sizeof(indiBright)); //считываем яркость из памяти
     _flask_mode = eeprom_read_byte((uint8_t*)11); //считываем режим колбы из памяти
     _bright_mode = eeprom_read_byte((uint8_t*)12); //считываем режим подсветки из памяти
     _bright_levle = eeprom_read_byte((uint8_t*)13); //считываем уровень подсветки из памяти
@@ -159,16 +161,27 @@ void data_convert(void) //преобразование данных
       wdt_time = 0; //сбрасываем таймер секунды
 
       //таймер часов
-      if (_timer_mode && _timer_secs) {
-        _timer_secs--; //уменьшаем таймер на 1сек
-        //если осталось мало времени
-        if (_timer_secs == _timer_blink) {
-          _mode = 3; //переходим в режим таймера
-          _disableSleep = 1; //запрещаем сон
-          if (_sleep) sleepOut(); //выход из сна
-        }
-        //оповещение окончания таймера
-        if (!_timer_secs) _msg_type = 1; //если таймер досчитал до 0
+      switch (_timer_mode) {
+        case 0:
+          if (_timer_start && _timer_secs) {
+            _timer_secs--; //уменьшаем таймер на 1сек
+            //если осталось мало времени
+            if (_timer_secs == _timer_blink) {
+              _mode = 3; //переходим в режим таймера
+              _disableSleep = 1; //запрещаем сон
+              if (_sleep) sleepOut(); //выход из сна
+            }
+            //оповещение окончания таймера
+            if (!_timer_secs) _msg_type = 1; //если таймер досчитал до 0
+          }
+          break;
+
+        case 1:
+          if (_timer_start) {
+            if (_timer_secs < 6000) _timer_secs++; //увеличиваем таймер на 1сек
+            else _timer_start = 0; //если секундомер переполнен выключаем таймер
+          }
+          break;
       }
       //опрос акб
       if (tmr_bat >= BAT_TIME) { //если пришло время опросит акб
@@ -210,7 +223,7 @@ void sleepMode(void) //режим сна
       _sleep = 1; //устанавливаем флаг активного сна
       TWI_disable(); //выключение TWI
       indiEnableSleep(); //выключаем дисплей
-      if (!_timer_mode) sleepDeep(); //глубокий сон
+      if (!_timer_start) sleepDeep(); //глубокий сон
     }
   }
   else sleep_pwr(); //иначе сон
@@ -269,7 +282,7 @@ void timerMessage(void) //оповещения таймера
   dot_state = 0; //выключаем точки
   _msg_type = 0; //сбрасываем тип оповещения
   _flask_block = 1; //запрещаем управление колбой
-  _timer_mode = 0; //сбрасываем режим таймера
+  _timer_start = 0; //сбрасываем режим таймера
   for (timer_millis = TIME_MSG_TMR_OVF; timer_millis && !check_keys();) {
     data_convert(); //преобразование данных
     if (!timer_dot) { //если таймер отработал
@@ -325,7 +338,7 @@ void pwrDownMessage(void) //оповещения выключения
     else flask_tmr--; //отнимаем таймер мигания колбой
     _delay_ms(1); //ждем 1мс
   }
-  eeprom_update_block((void*)&time, 0, sizeof(time)); //записываем дату в память
+  eeprom_update_block((void*)&time, (void*)0, sizeof(time)); //записываем дату в память
   flask_state = _flask_mode; //обновление стотояния колбы
   _timer_sleep = 0; //сбрасываем таймер сна
   _PowerDown(); //выключаем питание
@@ -545,7 +558,7 @@ uint8_t readLightSens(void) //чтение датчика освещённост
   ADCSRA |= (1 << ADSC); //запускаем преобразование
 
   for (uint8_t i = 0; i < 10; i++) { //делаем 10 замеров
-    while (ADCSRA & (1 << ADSC)); //ждем окончания преобразования    
+    while (ADCSRA & (1 << ADSC)); //ждем окончания преобразования
     result += ADCH; //прибавляем замер в буфер
     ADCSRA |= (1 << ADSC); //перезапускаем преобразование
   }
@@ -742,6 +755,7 @@ uint8_t check_keys(void) //проверка кнопок
       }
       break;
   }
+  return 0;
 }
 //----------------------------------------------------------------------------------
 void settings_time(void)
@@ -797,7 +811,8 @@ void settings_time(void)
           //настройка года
           case 4: if (time[0] > 20) time[0]--; else time[0] = 50; break; //год
         }
-        _scr = blink_data = time[6] = 0; //сбрасываем флаги
+        _scr = blink_data = 0; //сбрасываем флаги
+        time[6] = 0; //сбрасываем секунды
         break;
 
       case 2: //right click
@@ -813,7 +828,8 @@ void settings_time(void)
           //настройка года
           case 4: if (time[0] < 50) time[0]++; else time[0] = 21; break; //год
         }
-        _scr = blink_data = time[6] = 0; //сбрасываем флаги
+        _scr = blink_data = 0; //сбрасываем флаги
+        time[6] = 0; //сбрасываем секунды
         break;
 
       case 3: //left hold
@@ -837,18 +853,19 @@ void settings_time(void)
             for (timer_millis = TIME_MSG_PNT; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
             break;
         }
-        _scr = blink_data = time[6] = 0; //сбрасываем флаги
+        _scr = blink_data = 0; //сбрасываем флаги
+        time[6] = 0; //сбрасываем секунды
         break;
 
       case 4: //right hold
-        eeprom_update_block((void*)&time, 0, sizeof(time)); //записываем дату в память
+        eeprom_update_block((void*)&time, (void*)0, sizeof(time)); //записываем дату в память
         if (_bright_mode == 2) indiSetBright(brightDefault[indiBright[changeBright()]]); //установка яркости индикаторов
         TimeSetDate(time); //обновляем время
         dot_state = 0; //выключаем точку
         indiClr(); //очистка индикаторов
         indiPrint("OUT", 0);
         for (timer_millis = TIME_MSG; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
-        if (!_timer_mode || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
+        if (!_timer_start || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
         if (_mode != 3) _mode = 0; //переходим в режим часов
         _scr = 0; //обновляем экран
         return;
@@ -1131,8 +1148,8 @@ void settings_bright(void)
         break;
 
       case 4: //right hold
-        eeprom_update_block((void*)&timeBright, 7, sizeof(timeBright)); //записываем время в память
-        eeprom_update_block((void*)&indiBright, 9, sizeof(indiBright)); //записываем яркость в память
+        eeprom_update_block((void*)&timeBright, (void*)7, sizeof(timeBright)); //записываем время в память
+        eeprom_update_block((void*)&indiBright, (void*)9, sizeof(indiBright)); //записываем яркость в память
         eeprom_update_byte((uint8_t*)11, _flask_mode); //записываем в память режим колбы
         eeprom_update_byte((uint8_t*)12, _bright_mode); //записываем в память режим подсветки
         eeprom_update_byte((uint8_t*)13, _bright_levle); //записываем в память уровень подсветки
@@ -1151,7 +1168,7 @@ void settings_bright(void)
         indiClr(); //очистка индикаторов
         indiPrint("OUT", 0);
         for (timer_millis = TIME_MSG; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
-        if (!_timer_mode || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
+        if (!_timer_start || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
         if (_mode != 3) _mode = 0; //переходим в режим часов
         _bright_block = 0; //разрешаем управление подсветкой
         _scr = 0; //обновляем экран
@@ -1181,11 +1198,20 @@ void set_timer(void)
       indiClr(); //очистка индикаторов
       switch (cur_mode) {
         case 0:
+          indiPrint("P-", 0);
+          if (!blink_data) {
+            switch (_timer_mode) {
+              case 0: indiPrint("T", 3); break; //таймер
+              case 1: indiPrint("S", 3); break; //секундомер
+            }
+          }
+          break;
+        case 1:
           indiPrint("T", 0);
           if (!blink_data) indiPrintNum(timerDefault[_timer_preset], 2, 2, '0'); //вывод времени таймера
           break;
 
-        case 1:
+        case 2:
           indiPrint("B", 0);
           if (!blink_data) indiPrintNum(_timer_blink, 2, 2, '0'); //вывод времени мигания таймера
           break;
@@ -1197,30 +1223,38 @@ void set_timer(void)
     switch (check_keys()) {
       case 1: //left click
         switch (cur_mode) {
-          case 0: if (_timer_preset > 0) _timer_preset--; else _timer_preset = 9; break;
-          case 1: if (_timer_blink > 5) _timer_blink--; else _timer_blink = 60; break;
+          case 0: _timer_mode = 0; _timer_start = 0; _timer_secs = timerDefault[_timer_preset] * 60; break;
+          case 1: if (_timer_preset > 0) _timer_preset--; else _timer_preset = 9; break;
+          case 2: if (_timer_blink > 5) _timer_blink--; else _timer_blink = 60; break;
         }
         _scr = blink_data = 0; //сбрасываем флаги
         break;
 
       case 2: //right click
         switch (cur_mode) {
-          case 0: if (_timer_preset < 9) _timer_preset++; else _timer_preset = 0; break;
-          case 1: if (_timer_blink < 60) _timer_blink++; else _timer_blink = 5; break;
+          case 0: _timer_mode = 1; _timer_start = 0; _timer_secs = 0; break;
+          case 1: if (_timer_preset < 9) _timer_preset++; else _timer_preset = 0; break;
+          case 2: if (_timer_blink < 60) _timer_blink++; else _timer_blink = 5; break;
         }
         _scr = blink_data = 0; //сбрасываем флаги
         break;
 
       case 3: //left hold
-        if (cur_mode < 1) cur_mode++; else cur_mode = 0;
+        if (cur_mode < 2) cur_mode++; else cur_mode = 0;
         switch (cur_mode) {
           case 0:
+            indiClr(); //очистка индикаторов
+            indiPrint("PAR", 0);
+            for (timer_millis = TIME_MSG_PNT; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
+            break;
+
+          case 1:
             indiClr(); //очистка индикаторов
             indiPrint("TPR", 0);
             for (timer_millis = TIME_MSG_PNT; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
             break;
 
-          case 1:
+          case 2:
             indiClr(); //очистка индикаторов
             indiPrint("BLK", 0);
             for (timer_millis = TIME_MSG_PNT; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
@@ -1232,11 +1266,10 @@ void set_timer(void)
       case 4: //right hold
         eeprom_update_byte((uint8_t*)14, _timer_preset); //записываем в память номер пресета таймера
         eeprom_update_byte((uint8_t*)15, _timer_blink); //записываем в память время мигания таймера
-        if (!_timer_mode) _timer_secs = timerDefault[_timer_preset] * 60;
         indiClr(); //очистка индикаторов
         indiPrint("OUT", 0);
         for (timer_millis = TIME_MSG; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
-        if (!_timer_mode || _timer_secs > _timer_blink) _disableSleep = 0; //разрешаем сон
+        if (_timer_mode || (!_timer_start || _timer_secs > _timer_blink)) _disableSleep = 0; //разрешаем сон
         _scr = 0; //обновляем экран
         return;
     }
@@ -1303,11 +1336,11 @@ void main_screen(void) //главный экран
 
       case 3: //режим таймера
         if (!timer_dot) {
-          if (!_timer_mode || _timer_secs >= _timer_blink || !dot_state) { //если таймер не запущен или время больше утановленного или точки не горят
+          if (!_timer_start || _timer_secs >= _timer_blink || !dot_state) { //если таймер не запущен или время больше утановленного или точки не горят
             indiPrintNum(_timer_secs / 60, 0, 2, '0'); //вывод минут
             indiPrintNum(_timer_secs % 60, 2, 2, '0'); //вывод секунд
           }
-          if (_timer_mode) dot_state = !dot_state; //инвертируем точки
+          if (_timer_start) dot_state = !dot_state; //инвертируем точки
           else dot_state = 1; //включаем точки
           timer_dot = DOT_TIME; //установка таймера
         }
@@ -1319,20 +1352,33 @@ void main_screen(void) //главный экран
     case 1: //left key press
       if (_mode != 3) _mode = 3; //если не в режиме таймера, переходим в режим таймера
       else { //иначе
-        _timer_mode = !_timer_mode; //запуск - остановка таймера
-        if (_timer_mode && _timer_secs <= _timer_blink) _disableSleep = 1; //запрещаем сон
-        else if (_disableSleep) _disableSleep = 0; //разрешаем сон
+        _timer_start = !_timer_start; //запуск - остановка таймера
+        switch (_timer_mode) {
+          case 0: //режим таймера
+            if (_timer_start && _timer_secs <= _timer_blink) _disableSleep = 1; //запрещаем сон
+            else if (_disableSleep) _disableSleep = 0; //разрешаем сон
+            break;
+          case 1: //режим секундомера
+            break;
+        }
       }
       _scr = 0; //обновление экрана
       break;
 
     case 2: //right key press
-      if (!_timer_mode || _timer_secs > _timer_blink) { //если таймер выключен или время таймера больше установлнного
-        if (_mode < 2) _mode++; else _mode = 0; //переключаем режимы времени
-      }
-      else {
-        _timer_secs = timerDefault[_timer_preset] * 60; //иначе перезапускаем таймер
-        if (_disableSleep) _disableSleep = 0; //разрешаем сон
+      switch (_timer_mode) {
+        case 0: //режим таймера
+          if (!_timer_start || _timer_secs > _timer_blink) { //если таймер выключен или время таймера больше установлнного
+            if (_mode < 2) _mode++; else _mode = 0; //переключаем режимы времени
+          }
+          else {
+            _timer_secs = timerDefault[_timer_preset] * 60; //иначе перезапускаем таймер
+            if (_disableSleep) _disableSleep = 0; //разрешаем сон
+          }
+          break;
+        case 1: //режим секундомера
+          if (_mode < 2) _mode++; else _mode = 0; //переключаем режимы времени
+          break;
       }
       _scr = 0; //обновление экрана
       break;
@@ -1340,9 +1386,16 @@ void main_screen(void) //главный экран
     case 3: //left key hold
       if (_mode != 3) settings_time(); //настройки времени
       else { //сброс таймера
-        _timer_mode = 0; //выключаем таймер
-        _timer_secs = timerDefault[_timer_preset] * 60;
-        if (_disableSleep) _disableSleep = 0; //разрешаем сон
+        _timer_start = 0; //выключаем таймер
+        switch (_timer_mode) {
+          case 0: //режим таймера
+            _timer_secs = timerDefault[_timer_preset] * 60;
+            if (_disableSleep) _disableSleep = 0; //разрешаем сон
+            break;
+          case 1: //режим секундомера
+            _timer_secs = 0; //сброс секундомера
+            break;
+        }
       }
       _scr = 0; //обновление экрана
       break;

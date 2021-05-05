@@ -20,16 +20,8 @@ volatile uint8_t indi_state;
 #define _INDI_ON  PRR &= ~(1 << 6); TIMSK2 = 0b00000111
 #define _INDI_OFF TCNT2 = 128; TIMSK2 = 0b00000000; PRR |= (1 << 6)
 
-void indiInit(void);
-void indiEnableSleep(void);
-void indiDisableSleep(void);
-void indiSetBright(uint8_t indi, uint8_t pwm);
-void flashSetBright(uint8_t flash, uint8_t pwm);
-void indiSetBright(uint8_t pwm);
-void indiClr(void);
-void indiClr(uint8_t indi);
+
 void indiSet(uint8_t st, uint8_t indi, boolean state = 1);
-void indiPrint(const char *st, uint8_t indi);
 void indiPrintNum(int16_t num, uint8_t indi, uint8_t length = 0, char filler = ' ');
 
 inline void setPin(uint8_t pin, boolean x) {
