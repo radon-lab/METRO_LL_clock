@@ -854,7 +854,7 @@ void settings_time(void)
         indiClr(); //очистка индикаторов
         indiPrint("OUT", 0);
         for (timer_millis = TIME_MSG; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
-        if (!_timer_start || _timer_secs > timerSettings.timer_blink) _disableSleep = 0; //разрешаем сон
+        if (timerSettings.timer_mode || !_timer_start || _timer_secs > timerSettings.timer_blink) _disableSleep = 0; //разрешаем сон
         if (_mode != 3) _mode = 0; //переходим в режим часов
         _scr = 0; //обновляем экран
         return;
@@ -1149,7 +1149,7 @@ void settings_bright(void)
         indiClr(); //очистка индикаторов
         indiPrint("OUT", 0);
         for (timer_millis = TIME_MSG; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
-        if (!_timer_start || _timer_secs > timerSettings.timer_blink) _disableSleep = 0; //разрешаем сон
+        if (timerSettings.timer_mode || !_timer_start || _timer_secs > timerSettings.timer_blink) _disableSleep = 0; //разрешаем сон
         if (_mode != 3) _mode = 0; //переходим в режим часов
         _bright_block = 0; //разрешаем управление подсветкой
         _scr = 0; //обновляем экран
