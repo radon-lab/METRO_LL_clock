@@ -53,13 +53,7 @@ ISR(TIMER2_OVF_vect) //генерация символов
   }
   TCNT2 = 128; //сбрасываем счетчик таймера
 
-  uint8_t data = indi_buf[indi_state]; //заполняем буфер сигментов
-  for (uint8_t c = 0; c < 7; c++)
-  {
-    setPin(anodeMask[c], data & 0x80); //меняем значение сигментов
-    data = data << 1; //смещаем буфер
-  }
-
+  for (uint8_t c = 0; c < 7; c++) setPin(anodeMask[c], (indi_buf[indi_state] >> (7 - c)) & 0x01); //меняем значение сигментов
   setPin(cathodeMask[indi_state], 0); //включаем индикатор
 }
 ISR(TIMER2_COMPA_vect) {
@@ -171,8 +165,8 @@ void indiPrint(const char *st, uint8_t indi) //вывод текста
 //-------------------------Вывод чисел----------------------------------------------------
 void indiPrintNum(int16_t num, uint8_t indi, uint8_t length, char filler) //вывод чисел
 {
-  char buf[4];
-  char st[4];
+  char buf[5];
+  char st[5];
   boolean neg = 0;
   uint8_t c = 0, f = 0;
 
