@@ -419,8 +419,6 @@ void animFlip(void) //анимция перелистывания
       break;
 
     case 4:
-      _disableSleep = 1; //запрещаем сон
-
       anim_buf[0] = time[4] / 10; //часы
       anim_buf[1] = time[4] % 10; //часы
       anim_buf[2] = time[5] / 10; //минуты
@@ -1303,6 +1301,7 @@ void main_screen(void) //главный экран
     _animStart = 0; //завершаем анимацию
     _disableSleep = 1; //запрещаем сон
     animFlip(); //анимция перелистывания
+    _scr = 0; //разрешаем обновить экран
     _timer_sleep = 0; //сбрасываем таймер сна
     _disableSleep = 0; //разрешаем сон
   }
@@ -1335,7 +1334,7 @@ void main_screen(void) //главный экран
 
       case 3: //режим таймера
         if (!timer_dot) {
-          if (!_timer_start || _timer_secs >= timerSettings.timer_blink || !dot_state) { //если таймер не запущен или время больше утановленного или точки не горят
+          if (timerSettings.timer_mode || !_timer_start || _timer_secs >= timerSettings.timer_blink || !dot_state) { //если таймер не запущен или время больше утановленного или точки не горят
             indiPrintNum(_timer_secs / 60, 0, 2, '0'); //вывод минут
             indiPrintNum(_timer_secs % 60, 2, 2, '0'); //вывод секунд
           }
@@ -1356,8 +1355,6 @@ void main_screen(void) //главный экран
           case 0: //режим таймера
             if (_timer_start && _timer_secs <= timerSettings.timer_blink) _disableSleep = 1; //запрещаем сон
             else if (_disableSleep) _disableSleep = 0; //разрешаем сон
-            break;
-          case 1: //режим секундомера
             break;
         }
       }
