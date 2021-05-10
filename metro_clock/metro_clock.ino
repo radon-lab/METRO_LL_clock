@@ -1,5 +1,5 @@
 /*
-  Arduino IDE 1.8.13 версия прошивки 1.4.5 от 05.05.21
+  Arduino IDE 1.8.13 версия прошивки 1.4.5 от 10.05.21
   Специльно для проекта "Часы METRO LAST LIGHT"
   Исходник - https://github.com/radon-lab/METRO_LL_clock
   Автор Radon-lab.
@@ -84,8 +84,8 @@ int main(void)  //инициализация
   indiInit(); //инициализация индикаторов
   _PowerDown(); //выключаем питание
 
-  if (eeprom_read_byte((uint8_t*)110) != 110) { //если первый запуск, восстанавливаем из переменных
-    eeprom_update_byte((uint8_t*)110, 110); //делаем метку
+  if (eeprom_read_byte((uint8_t*)255) != 145) { //если первый запуск, восстанавливаем из переменных
+    eeprom_update_byte((uint8_t*)255, 145); //делаем метку
     eeprom_update_block((void*)&timeDefault, (void*)0, sizeof(timeDefault)); //записываем дату по умолчанию в память
     eeprom_update_block((void*)&mainSettings, (void*)7, sizeof(mainSettings)); //записываем основные настройки в память
     eeprom_update_block((void*)&timerSettings, (void*)18, sizeof(timerSettings)); //записываем настройки таймера в память
@@ -1249,7 +1249,7 @@ void set_timer(void)
         indiClr(); //очистка индикаторов
         indiPrint("OUT", 0);
         for (timer_millis = TIME_MSG; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
-        if (timerSettings.timer_mode || (!_timer_start || _timer_secs > timerSettings.timer_blink)) _disableSleep = 0; //разрешаем сон
+        if (timerSettings.timer_mode || !_timer_start || _timer_secs > timerSettings.timer_blink) _disableSleep = 0; //разрешаем сон
         _scr = 0; //обновляем экран
         return;
     }
