@@ -40,13 +40,13 @@ void TimeGetDate(uint8_t *values) // year, month, dayOfMonth, dayOfWeek, hour, m
 
   if (WireRequestFrom(DS1307_ADDRESS, 0x00)) return; //запрашиваем чтение данных, если нет ответа выходим
 
-  values[6] = WireRead(); //получаем время
-  values[5] = WireRead();
-  values[4] = WireRead();
-  values[3] = WireRead();
-  values[2] = WireRead();
-  values[1] = WireRead();
-  values[0] = WireReadEndByte();
+  values[6] = fromBCDToDecimal(WireRead()); //получаем время
+  values[5] = fromBCDToDecimal(WireRead());
+  values[4] = fromBCDToDecimal(WireRead());
+  values[3] = fromBCDToDecimal(WireRead());
+  values[2] = fromBCDToDecimal(WireRead());
+  values[1] = fromBCDToDecimal(WireRead());
+  values[0] = fromBCDToDecimal(WireReadEndByte());
 
   RTC_BAT_ON; //включаем питание батареи
   RTC_OFF; //выключаем питание РТС
