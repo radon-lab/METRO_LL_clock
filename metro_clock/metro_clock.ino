@@ -714,6 +714,7 @@ uint8_t check_keys(void) //проверка кнопок
           if (!_sleep) { //если не спим
             btn_set = 2; //поднимаем признак удержания
             _timer_sleep = 0; //сбрасываем таймер сна
+            _scr = 0; //разрешаем обновить экран
           }
           btn_check = 0; //запрещем проврку кнопки
         }
@@ -727,6 +728,7 @@ uint8_t check_keys(void) //проверка кнопок
         else sleepOut(); //иначе выход из сна
         btn_check = 0; //запрещем проврку кнопки
         _timer_sleep = 0; //сбрасываем таймер сна
+        _scr = 0; //разрешаем обновить экран
       }
       else if (!btn_tmr) {
         btn_check = 1; //разрешаем проврку кнопки
@@ -813,7 +815,7 @@ void settings_time(void)
           //настройка года
           case 4: if (time[0] > 20) time[0]--; else time[0] = 50; break; //год
         }
-        _scr = blink_data = 0; //сбрасываем флаги
+        blink_data = 0; //сбрасываем флаг мигания
         time[6] = 0; //сбрасываем секунды
         break;
 
@@ -834,7 +836,7 @@ void settings_time(void)
           //настройка года
           case 4: if (time[0] < 50) time[0]++; else time[0] = 21; break; //год
         }
-        _scr = blink_data = 0; //сбрасываем флаги
+        blink_data = 0; //сбрасываем флаг мигания
         time[6] = 0; //сбрасываем секунды
         break;
 
@@ -859,7 +861,7 @@ void settings_time(void)
             for (timer_millis = TIME_MSG_PNT; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
             break;
         }
-        _scr = blink_data = 0; //сбрасываем флаги
+        blink_data = 0; //сбрасываем флаг мигания
         time[6] = 0; //сбрасываем секунды
         break;
 
@@ -873,7 +875,6 @@ void settings_time(void)
         for (timer_millis = TIME_MSG; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
         if (timerSettings.timer_mode || !_timer_start || _timer_secs > timerSettings.timer_blink) _disableSleep = 0; //разрешаем сон
         if (_mode != 3) _mode = 0; //переходим в режим часов
-        _scr = 0; //обновляем экран
         return;
     }
   }
@@ -1024,7 +1025,7 @@ void settings_bright(void)
             indiSetBright(brightDefault[mainSettings.indiBright[1]]); //установка яркости индикаторов
             break;
         }
-        _scr = blink_data = 0; //сбрасываем флаги
+        blink_data = 0; //сбрасываем флаг мигания
         break;
 
       case 2: //right click
@@ -1086,7 +1087,7 @@ void settings_bright(void)
             indiSetBright(brightDefault[mainSettings.indiBright[1]]); //установка яркости индикаторов
             break;
         }
-        _scr = blink_data = 0; //сбрасываем флаги
+        blink_data = 0; //сбрасываем флаг мигания
         break;
 
       case 3: //left hold
@@ -1150,7 +1151,7 @@ void settings_bright(void)
             _bright_block = 1; //запрещаем управление подсветкой
             break;
         }
-        _scr = blink_data = 0; //сбрасываем флаги
+        blink_data = 0; //сбрасываем флаг мигания
         break;
 
       case 4: //right hold
@@ -1169,7 +1170,6 @@ void settings_bright(void)
         if (timerSettings.timer_mode || !_timer_start || _timer_secs > timerSettings.timer_blink) _disableSleep = 0; //разрешаем сон
         if (_mode != 3) _mode = 0; //переходим в режим часов
         _bright_block = 0; //разрешаем управление подсветкой
-        _scr = 0; //обновляем экран
         return;
     }
   }
@@ -1225,7 +1225,7 @@ void set_timer(void)
           case 1: if (timerSettings.timer_preset > 0) timerSettings.timer_preset--; else timerSettings.timer_preset = 9; break;
           case 2: if (timerSettings.timer_blink > 5) timerSettings.timer_blink--; else timerSettings.timer_blink = 60; break;
         }
-        _scr = blink_data = 0; //сбрасываем флаги
+        blink_data = 0; //сбрасываем флаг мигания
         break;
 
       case 2: //right click
@@ -1234,7 +1234,7 @@ void set_timer(void)
           case 1: if (timerSettings.timer_preset < 9) timerSettings.timer_preset++; else timerSettings.timer_preset = 0; break;
           case 2: if (timerSettings.timer_blink < 60) timerSettings.timer_blink++; else timerSettings.timer_blink = 5; break;
         }
-        _scr = blink_data = 0; //сбрасываем флаги
+        blink_data = 0; //сбрасываем флаг мигания
         break;
 
       case 3: //left hold
@@ -1258,7 +1258,7 @@ void set_timer(void)
             for (timer_millis = TIME_MSG_PNT; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
             break;
         }
-        _scr = blink_data = 0; //сбрасываем флаги
+        blink_data = 0; //сбрасываем флаг мигания
         break;
 
       case 4: //right hold
@@ -1267,7 +1267,6 @@ void set_timer(void)
         indiPrint("OUT", 0);
         for (timer_millis = TIME_MSG; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
         if (timerSettings.timer_mode || !_timer_start || _timer_secs > timerSettings.timer_blink) _disableSleep = 0; //разрешаем сон
-        _scr = 0; //обновляем экран
         return;
     }
   }
@@ -1301,7 +1300,6 @@ void main_screen(void) //главный экран
     _animStart = 0; //завершаем анимацию
     _disableSleep = 1; //запрещаем сон
     animFlip(); //анимция перелистывания
-    _scr = 0; //разрешаем обновить экран
     _timer_sleep = 0; //сбрасываем таймер сна
     _disableSleep = 0; //разрешаем сон
   }
@@ -1358,7 +1356,6 @@ void main_screen(void) //главный экран
             break;
         }
       }
-      _scr = 0; //обновление экрана
       break;
 
     case 2: //right key press
@@ -1376,7 +1373,6 @@ void main_screen(void) //главный экран
           if (_mode < 2) _mode++; else _mode = 0; //переключаем режимы времени
           break;
       }
-      _scr = 0; //обновление экрана
       break;
 
     case 3: //left key hold
@@ -1393,13 +1389,11 @@ void main_screen(void) //главный экран
             break;
         }
       }
-      _scr = 0; //обновление экрана
       break;
 
     case 4: //right key hold
       if (_mode != 3) settings_bright(); //настройки яркости
       else set_timer(); //настройка таймера
-      _scr = 0; //обновление экрана
       break;
   }
 }
