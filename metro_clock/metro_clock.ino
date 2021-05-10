@@ -348,9 +348,10 @@ void animFlip(void) //анимция перелистывания
       anim_buf[2] = time[5] / 10; //минуты
       anim_buf[3] = time[5] % 10; //минуты
 
-      for (uint8_t i = 0; i < 10 && !check_keys();) {
+      for (uint8_t i = 0; i < 10;) {
         data_convert(); //преобразование данных
         dotFlash(); //мигаем точками
+        if (check_keys()) return;
         if (!timer_millis) { //если таймер отработал
           for (uint8_t n = 0; n < 4; n++) {
             if (anim_buf[n] < 9) anim_buf[n]++; else anim_buf[n] = 0;
@@ -365,9 +366,10 @@ void animFlip(void) //анимция перелистывания
     case 2:
       for (uint8_t i = 0; i < 4; i++) anim_buf[i] = 9; //буфер анимации
 
-      for (uint8_t i = 1; i && !check_keys();) {
+      for (uint8_t i = 1; i;) {
         data_convert(); //преобразование данных
         dotFlash(); //мигаем точками
+        if (check_keys()) return;
         if (!timer_millis) { //если таймер отработал
           i = 0; //сбрасываем счетчик циклов
           indiPrintNum(anim_buf[0], 0); //вывод часов
@@ -401,9 +403,10 @@ void animFlip(void) //анимция перелистывания
       anim_buf[1] = time[5] / 10; //минуты
       anim_buf[0] = time[5] % 10; //минуты
 
-      for (uint8_t i = 0; i < 4 && !check_keys();) {
+      for (uint8_t i = 0; i < 4;) {
         data_convert(); //преобразование данных
         dotFlash(); //мигаем точками
+        if (check_keys()) return;
         if (!timer_millis) { //если таймер отработал
           for (uint8_t b = 0; b < 4; b++) {
             if (b <= i) indiPrintNum(anim_buf[i - b], b); //вывод часов
@@ -423,9 +426,10 @@ void animFlip(void) //анимция перелистывания
       anim_buf[2] = time[5] / 10; //минуты
       anim_buf[3] = time[5] % 10; //минуты
 
-      for (uint8_t i = 0; i < 4 && !check_keys();) {
+      for (uint8_t i = 0; i < 4;) {
         data_convert(); //преобразование данных
         dotFlash(); //мигаем точками
+        if (check_keys()) return;
         if (!timer_millis) { //если таймер отработал
           for (uint8_t b = 0; b < 4 - i; b++) {
             if (b == indiPos) indiPrintNum(anim_buf[3 - i], b); //вывод часов
@@ -443,9 +447,10 @@ void animFlip(void) //анимция перелистывания
     case 5:
       for (uint8_t i = 0; i < 4; i++) anim_buf[i] = stopIndi[i] = 0; //буфер анимации
 
-      for (uint8_t i = 1; i && !check_keys();) {
+      for (uint8_t i = 1; i;) {
         data_convert(); //преобразование данных
         dotFlash(); //мигаем точками
+        if (check_keys()) return;
         if (!timer_millis) { //если таймер отработал
           if (numState < 4) numState++;
           else {
@@ -491,9 +496,10 @@ void animFlip(void) //анимция перелистывания
       anim_buf[2] = time[5] / 10; //минуты
       anim_buf[3] = time[5] % 10; //минуты
 
-      for (uint8_t i = 0; i < 4 && !check_keys();) {
+      for (uint8_t i = 0; i < 4;) {
         data_convert(); //преобразование данных
         dotFlash(); //мигаем точками
+        if (check_keys()) return;
         if (!timer_millis) { //если таймер отработал
           if (numState < 2) numState++;
           else {
@@ -799,8 +805,12 @@ void settings_time(void)
           case 1: if (time[5] > 0) time[5]--; else time[5] = 59; break; //минуты
 
           //настройка даты
-          case 2: if (time[2] > 1 ) time[2]--; else time[2] = maxDays(); break; //день
-          case 3: if (time[1] > 1) time[1]--; else time[1] = 12; if (time[2] > maxDays()) time[2] = maxDays(); break; //месяц
+          case 2: if (time[2] > 1) time[2]--; else time[2] = maxDays(); break; //день
+          case 3: //месяц
+            if (time[1] > 1) time[1]--;
+            else time[1] = 12;
+            if (time[2] > maxDays()) time[2] = maxDays();
+            break;
 
           //настройка года
           case 4: if (time[0] > 20) time[0]--; else time[0] = 50; break; //год
@@ -817,7 +827,11 @@ void settings_time(void)
 
           //настройка даты
           case 2: if (time[2] < maxDays()) time[2]++; else time[2] = 1; break; //день
-          case 3: if (time[1] < 12) time[1]++; else time[1] = 1; if (time[2] > maxDays()) time[2] = maxDays(); break; //месяц
+          case 3: //месяц
+            if (time[1] < 12) time[1]++;
+            else time[1] = 1;
+            if (time[2] > maxDays()) time[2] = maxDays();
+            break;
 
           //настройка года
           case 4: if (time[0] < 50) time[0]++; else time[0] = 21; break; //год
