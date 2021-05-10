@@ -556,6 +556,11 @@ uint8_t readLightSens(void) //чтение датчика освещённост
 
   return result; //возвращаем результат
 }
+//-------------------------------Максимальное количество дней--------------------------------------------------
+uint8_t maxDays(void) //максимальное количество дней
+{
+  return daysInMonth[time[1] - 1] + (time[1] == 2 && !(time[0] % 4)) ? 1 : 0; //возвращаем количество дней в месяце
+}
 //-------------------------------Чтение датчика освещённости--------------------------------------------------
 uint8_t lightSens(void) //чтение датчика освещённости
 {
@@ -794,8 +799,8 @@ void settings_time(void)
           case 1: if (time[5] > 0) time[5]--; else time[5] = 59; break; //минуты
 
           //настройка даты
-          case 2: if (time[2] > 1 ) time[2]--; else time[2] = (time[1] == 2 && !(time[0] % 4)) ? 1 : 0 + daysInMonth[time[1] - 1]; break; //день
-          case 3: if (time[1] > 1) time[1]--; else time[1] = 12; time[2] = 1; break; //месяц
+          case 2: if (time[2] > 1 ) time[2]--; else time[2] = maxDays(); break; //день
+          case 3: if (time[1] > 1) time[1]--; else time[1] = 12; if (time[2] > maxDays()) time[2] = maxDays(); break; //месяц
 
           //настройка года
           case 4: if (time[0] > 20) time[0]--; else time[0] = 50; break; //год
@@ -811,8 +816,8 @@ void settings_time(void)
           case 1: if (time[5] < 59) time[5]++; else time[5] = 0; break; //минуты
 
           //настройка даты
-          case 2: if (time[2] < daysInMonth[time[1] - 1] + (time[1] == 2 && !(time[0] % 4)) ? 1 : 0) time[2]++; else time[2] = 1; break; //день
-          case 3: if (time[1] < 12) time[1]++; else time[1] = 1; time[2] = 1; break; //месяц
+          case 2: if (time[2] < maxDays()) time[2]++; else time[2] = 1; break; //день
+          case 3: if (time[1] < 12) time[1]++; else time[1] = 1; if (time[2] > maxDays()) time[2] = maxDays(); break; //месяц
 
           //настройка года
           case 4: if (time[0] < 50) time[0]++; else time[0] = 21; break; //год
