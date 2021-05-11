@@ -210,7 +210,7 @@ void sleepMode(void) //режим сна
     waint_pwr(); //ожидание
     if (!_disableSleep && mainSettings.sleep_time && _timer_sleep == mainSettings.sleep_time) {
       uint8_t indic[4]; //буфер анимации
-      for (uint8_t s = 0; s < 4; s++) indic[s] = random(0, 7); //выбираем рндомный сигмент
+      for (uint8_t s = 0; s < 4; s++) indic[s] = readLightSens() % 7; //выбираем рндомный сигмент
       for (uint8_t c = 0; c < 7;) { //отрисовываем анимацию
         data_convert(); //преобразование данных
         if (check_keys()) return; //если нажата кнопка прерываем сон
