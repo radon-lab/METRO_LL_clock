@@ -115,8 +115,8 @@ int main(void)  //инициализация
   //----------------------------------Главная-------------------------------------------------------------
   for (;;) //главная
   {
-    sleepMode(); //режим сна
     data_convert(); //преобразование данных
+    sleepMode(); //режим сна
     main_screen(); //главный экран
   }
   return 0; //конец
@@ -131,6 +131,9 @@ void data_convert(void) //преобразование данных
 {
   static uint8_t wdt_time; //счетчик времени
   static uint8_t tmr_bat; //таймер опроса батареи
+
+  if (!_sleep) waint_pwr(); //если не спим - режим ожидания
+  else sleep_pwr(); //иначе режим сна
 
   for (; tick_wdt > 0; tick_wdt--) { //если был тик, обрабатываем данные
 
@@ -206,7 +209,6 @@ void data_convert(void) //преобразование данных
 void sleepMode(void) //режим сна
 {
   if (!_sleep) {
-    waint_pwr(); //ожидание
     if (!_disableSleep && mainSettings.sleep_time && _timer_sleep == mainSettings.sleep_time) {
       uint8_t indic[4]; //буфер анимации
       for (uint8_t s = 0; s < 4; s++) indic[s] = readLightSens() % 7; //выбираем рндомный сигмент
@@ -229,7 +231,6 @@ void sleepMode(void) //режим сна
       if (!_timer_start) sleepDeep(); //глубокий сон
     }
   }
-  else sleep_pwr(); //иначе сон
 }
 //-----------------------------Выход из глубокого сна--------------------------------------------
 EMPTY_INTERRUPT(PCINT2_vect); //внешнее прерывание PCINT2
@@ -300,13 +301,11 @@ void timerMessage(void) //оповещения таймера
   _mode = 0; //переходим в режим часов
   _timer_sleep = 0; //сбрасываем таймер сна
   _flask_block = 0; //разрешаем управление колбой
-  _disableSleep = 0; //разрешаем сон
 }
 //-------------------------------Оповещения батареи----------------------------------------------------
 void lowBatMessage(void) //оповещения батареи
 {
   _msg_type = 0; //сбрасываем тип оповещения
-  _disableSleep = 1; //запрещаем сон
   _flask_block = 1; //запрещаем управление колбой
   dot_state = 0; //выключаем точки
   uint8_t pos = 0; //позиция надписи
@@ -323,7 +322,6 @@ void lowBatMessage(void) //оповещения батареи
   flask_state = mainSettings.flask_mode; //обновление стотояния колбы
   _timer_sleep = 0; //сбрасываем таймер сна
   _flask_block = 0; //разрешаем управление колбой
-  _disableSleep = 0; //разрешаем сон
 }
 //-------------------------------Оповещения выключения----------------------------------------------------
 void pwrDownMessage(void) //оповещения выключения
@@ -354,6 +352,8 @@ void animFlip(void) //анимция перелистывания
   uint8_t indiPos = 0; //позиция индикатора
   uint8_t numState = 0; //фаза числа
   uint8_t stopTick = 0; //фаза числа
+
+  _animStart = 0; //запрещаем анимацию
 
   switch (mainSettings.anim_mode) {
     case 1:
@@ -777,8 +777,6 @@ void settings_time(void)
   uint8_t cur_mode = 0; //текущий режим
   boolean blink_data = 0; //мигание сигментами
 
-  _disableSleep = 1; //запрещаем сон
-
   dot_state = 1; //включаем точку
   indiClr(); //очищаем индикаторы
   indiPrint("SET", 0);
@@ -899,8 +897,6 @@ void settings_bright(void)
   uint8_t cur_mode = 0; //текущий режим
   boolean blink_data = 0; //мигание сигментами
   uint16_t result = 0; //результат опроса сенсора освещенности
-
-  _disableSleep = 1; //запрещаем сон
 
   dot_state = 0; //выключаем точку
   indiClr(); //очищаем индикаторы
@@ -1194,8 +1190,6 @@ void set_timer(void)
   uint8_t cur_mode = 0; //текущий режим
   boolean blink_data = 0; //мигание сигментами
 
-  _disableSleep = 1; //запрещаем сон
-
   dot_state = 0; //выключаем точку
   indiClr(); //очищаем индикаторы
   indiPrint("TSET", 0);
@@ -1311,11 +1305,8 @@ void main_screen(void) //главный экран
   }
 
   if (_animStart) {
-    _animStart = 0; //завершаем анимацию
-    _disableSleep = 1; //запрещаем сон
     animFlip(); //анимция перелистывания
     _timer_sleep = 0; //сбрасываем таймер сна
-    _disableSleep = 0; //разрешаем сон
   }
 
   if (!_scr) {
