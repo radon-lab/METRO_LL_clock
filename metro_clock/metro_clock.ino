@@ -4,6 +4,8 @@
   Исходник - https://github.com/radon-lab/METRO_LL_clock
   Автор Radon-lab.
 */
+//--------------Версия прошивки-------------
+#define VERSION_FW 0x92
 
 //----------------Библиотеки----------------
 #include <avr/sleep.h>
@@ -55,6 +57,7 @@ struct Settings1 {
   uint8_t bright_levle = DEFAULT_BRIGHT; //текущая яркость подсветки
   uint8_t sleep_time = DEFAULT_SLEEP_TIME; //время ухода в сон
   uint8_t anim_mode = DEFAULT_ANIM_MODE; //текущий режим анимации
+  boolean sleep_anim = DEFAULT_SLEEP_ANIM; //флаг анимации ухода в сон
   uint8_t adcMinAuto = DEFAULT_LIGHT_SENS_ADC; //минимальное значение ацп
   uint8_t adcMaxAuto = DEFAULT_LIGHT_SENS_ADC; //максимальное значение ацп
 } mainSettings;
@@ -64,6 +67,10 @@ struct Settings2 {
   uint8_t timer_preset = DEFAULT_PRESET_TIMER; //текущий номер выбранного пресета таймера
   uint8_t timer_blink = DEFAULT_BLINK_TIMER; //время мигания таймера
 } timerSettings;
+
+#define EEPROM_BLOCK_TIME EEPROM_BLOCK_NULL //блок памяти времени
+#define EEPROM_BLOCK_SETTINGS_MAIN (EEPROM_BLOCK_TIME + sizeof(time)) //блок памяти основных настроек
+#define EEPROM_BLOCK_SETTINGS_TIMER (EEPROM_BLOCK_SETTINGS_MAIN + sizeof(mainSettings)) //блок памяти настроек таймера
 
 int atexit(void (* /*func*/ )()) { //инициализация функций
   return 0;
@@ -84,21 +91,21 @@ int main(void)  //инициализация
   indiInit(); //инициализация индикаторов
   _PowerDown(); //выключаем питание
 
-  if (eeprom_read_byte((uint8_t*)255) != 145) { //если первый запуск, восстанавливаем из переменных
-    eeprom_update_byte((uint8_t*)255, 145); //делаем метку
-    eeprom_update_block((void*)&timeDefault, (void*)0, sizeof(timeDefault)); //записываем дату по умолчанию в память
-    eeprom_update_block((void*)&mainSettings, (void*)7, sizeof(mainSettings)); //записываем основные настройки в память
-    eeprom_update_block((void*)&timerSettings, (void*)18, sizeof(timerSettings)); //записываем настройки таймера в память
+  if (eeprom_read_byte((uint8_t*)EEPROM_BLOCK_VERSION_FW) != VERSION_FW) { //если первый запуск, восстанавливаем из переменных
+    eeprom_update_byte((uint8_t*)EEPROM_BLOCK_VERSION_FW, VERSION_FW); //делаем метку
+    eeprom_update_block((void*)&timeDefault, (void*)EEPROM_BLOCK_TIME, sizeof(timeDefault)); //записываем дату по умолчанию в память
+    eeprom_update_block((void*)&mainSettings, (void*)EEPROM_BLOCK_SETTINGS_MAIN, sizeof(mainSettings)); //записываем основные настройки в память
+    eeprom_update_block((void*)&timerSettings, (void*)EEPROM_BLOCK_SETTINGS_TIMER, sizeof(timerSettings)); //записываем настройки таймера в память
 
   }
   else {
-    eeprom_read_block((void*)&mainSettings, (void*)7, sizeof(mainSettings)); //считываем основные настройки из памяти
-    eeprom_read_block((void*)&timerSettings, (void*)18, sizeof(timerSettings)); //считываем настройки таймера из памяти
+    eeprom_read_block((void*)&mainSettings, (void*)EEPROM_BLOCK_SETTINGS_MAIN, sizeof(mainSettings)); //считываем основные настройки из памяти
+    eeprom_read_block((void*)&timerSettings, (void*)EEPROM_BLOCK_SETTINGS_TIMER, sizeof(timerSettings)); //считываем настройки таймера из памяти
   }
 
   if (time[0] < 21 || time[0] > 50) { //если пропадало питание
     indiPrint("INIT", 0);
-    eeprom_read_block((void*)&timeDefault, 0, sizeof(timeDefault)); //считываем дату из памяти
+    eeprom_read_block((void*)&timeDefault, EEPROM_BLOCK_TIME, sizeof(timeDefault)); //считываем дату из памяти
     TimeSetDate(timeDefault); //устанавливаем новое время
   }
   for (timer_millis = 2000; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
@@ -210,18 +217,20 @@ void sleepMode(void) //режим сна
 {
   if (!_sleep) {
     if (!_disableSleep && mainSettings.sleep_time && _timer_sleep == mainSettings.sleep_time) {
-      uint8_t indic[4]; //буфер анимации
-      for (uint8_t s = 0; s < 4; s++) indic[s] = readLightSens() % 7; //выбираем рндомный сигмент
-      for (uint8_t c = 0; c < 7;) { //отрисовываем анимацию
-        data_convert(); //преобразование данных
-        if (check_keys()) return; //если нажата кнопка прерываем сон
-        if (!timer_millis) { //если таймер истек
-          timer_millis = SLEEP_ANIM_TIME; //устанавливаем таймер
-          c++; //смещаем анимацию
-          for (uint8_t i = 0; i < 4; i++) { //стираем сигменты
-            if (indic[i] < 6) indic[i]++; //если не достигнут максимум
-            else indic[i] = 0; //иначе сбрасываем в начало
-            indiSet(indic[i], i, 0); //очищаем сигменты по очереди
+      if (mainSettings.sleep_anim) {
+        uint8_t indic[4]; //буфер анимации
+        for (uint8_t s = 0; s < 4; s++) indic[s] = readLightSens() % 7; //выбираем рндомный сигмент
+        for (uint8_t c = 0; c < 7;) { //отрисовываем анимацию
+          data_convert(); //преобразование данных
+          if (check_keys()) return; //если нажата кнопка прерываем сон
+          if (!timer_millis) { //если таймер истек
+            timer_millis = SLEEP_ANIM_TIME; //устанавливаем таймер
+            c++; //смещаем анимацию
+            for (uint8_t i = 0; i < 4; i++) { //стираем сигменты
+              if (indic[i] < 6) indic[i]++; //если не достигнут максимум
+              else indic[i] = 0; //иначе сбрасываем в начало
+              indiSet(indic[i], i, 0); //очищаем сигменты по очереди
+            }
           }
         }
       }
@@ -339,7 +348,7 @@ void pwrDownMessage(void) //оповещения выключения
     else flask_tmr--; //отнимаем таймер мигания колбой
     _delay_ms(1); //ждем 1мс
   }
-  eeprom_update_block((void*)&time, (void*)0, sizeof(time)); //записываем дату в память
+  eeprom_update_block((void*)&time, (void*)EEPROM_BLOCK_TIME, sizeof(time)); //записываем дату в память
   flask_state = mainSettings.flask_mode; //обновление стотояния колбы
   _timer_sleep = 0; //сбрасываем таймер сна
   _PowerDown(); //выключаем питание
@@ -878,7 +887,7 @@ void settings_time(void)
         break;
 
       case 4: //right hold
-        eeprom_update_block((void*)&time, (void*)0, sizeof(time)); //записываем дату в память
+        eeprom_update_block((void*)&time, (void*)EEPROM_BLOCK_TIME, sizeof(time)); //записываем дату в память
         if (mainSettings.bright_mode == 2) indiSetBright(brightDefault[mainSettings.indiBright[changeBright()]]); //установка яркости индикаторов
         TimeSetDate(time); //обновляем время
         dot_state = 0; //выключаем точку
@@ -925,10 +934,14 @@ void settings_bright(void)
           if (!blink_data) indiPrintNum(mainSettings.anim_mode, 3); //режим анимации
           break;
         case 3:
+          indiPrint("AS", 0); //анимация
+          if (!blink_data) indiPrintNum(mainSettings.sleep_anim, 3); //анимация ухода в сон
+          break;
+        case 4:
           indiPrint("BR", 0); //подсветка
           if (!blink_data) indiPrintNum(mainSettings.bright_mode, 3); //режим подсветки
           break;
-        case 4:
+        case 5:
           switch (mainSettings.bright_mode) {
             case 0: //ручная подсветка
               indiPrint("L", 0);
@@ -948,7 +961,7 @@ void settings_bright(void)
               break;
           }
           break;
-        case 5:
+        case 6:
           switch (mainSettings.bright_mode) {
             case 2:
               indiPrint("D", 0); //день
@@ -962,11 +975,11 @@ void settings_bright(void)
               break;
           }
           break;
-        case 6:
+        case 7:
           indiPrint("D", 0);
           if (!blink_data) indiPrintNum(mainSettings.timeBright[1], 2, 2, '0'); //вывод время включения дневной подсветки
           break;
-        case 7:
+        case 8:
           indiPrint("L", 0); //вывод 2000
           if (!blink_data) indiPrintNum(mainSettings.indiBright[1] + 1, 3); //вывод яркости день
           break;
@@ -989,7 +1002,10 @@ void settings_bright(void)
             if (mainSettings.anim_mode > 0) mainSettings.anim_mode--; else mainSettings.anim_mode = sizeof(animTime);
             animFlip(); //анимция перелистывания
             break;
-          case 3: //настройка подсветки
+          case 3: //настройка анимации сна
+            mainSettings.sleep_anim = !mainSettings.sleep_anim;
+            break;
+          case 4: //настройка подсветки
             if (mainSettings.bright_mode > 0) mainSettings.bright_mode--; else mainSettings.bright_mode = 1 + USE_LIGHT_SENS;
             switch (mainSettings.bright_mode) {
               case 0: indiSetBright(brightDefault[mainSettings.bright_levle]); break; //установка яркости индикаторов
@@ -999,7 +1015,7 @@ void settings_bright(void)
             break;
 
           //настройка ночной подсветки
-          case 4:
+          case 5:
             switch (mainSettings.bright_mode) {
               case 0: //ручная подсветка
                 if (mainSettings.bright_levle > 0) mainSettings.bright_levle--; else mainSettings.bright_levle = 4;
@@ -1015,7 +1031,7 @@ void settings_bright(void)
                 break;
             }
             break;
-          case 5:
+          case 6:
             switch (mainSettings.bright_mode) {
               case 1:
                 if (mainSettings.indiBright[0] > 0) mainSettings.indiBright[0]--; else mainSettings.indiBright[0] = 4;
@@ -1029,8 +1045,8 @@ void settings_bright(void)
             break;
 
           //настройка дневной подсветки
-          case 6: if (mainSettings.timeBright[1] > 0) mainSettings.timeBright[1]--; else mainSettings.timeBright[1] = 23; break; //часы
-          case 7:
+          case 7: if (mainSettings.timeBright[1] > 0) mainSettings.timeBright[1]--; else mainSettings.timeBright[1] = 23; break; //часы
+          case 8:
             if (mainSettings.indiBright[1] > 0) mainSettings.indiBright[1]--; else mainSettings.indiBright[1] = 4;
             indiSetBright(brightDefault[mainSettings.indiBright[1]]); //установка яркости индикаторов
             break;
@@ -1051,7 +1067,10 @@ void settings_bright(void)
             if (mainSettings.anim_mode < sizeof(animTime)) mainSettings.anim_mode++; else mainSettings.anim_mode = 0;
             animFlip(); //анимция перелистывания
             break;
-          case 3: //настройка подсветки
+          case 3: //настройка анимации сна
+            mainSettings.sleep_anim = !mainSettings.sleep_anim;
+            break;
+          case 4: //настройка подсветки
             if (mainSettings.bright_mode < 1 + USE_LIGHT_SENS) mainSettings.bright_mode++; else mainSettings.bright_mode = 0;
             switch (mainSettings.bright_mode) {
               case 0: indiSetBright(brightDefault[mainSettings.bright_levle]); break; //установка яркости индикаторов
@@ -1061,7 +1080,7 @@ void settings_bright(void)
             break;
 
           //настройка ночной подсветки
-          case 4:
+          case 5:
             switch (mainSettings.bright_mode) {
               case 0: //ручная подсветка
                 if (mainSettings.bright_levle < 4) mainSettings.bright_levle++; else mainSettings.bright_levle = 0;
@@ -1077,7 +1096,7 @@ void settings_bright(void)
                 break;
             }
             break;
-          case 5:
+          case 6:
             switch (mainSettings.bright_mode) {
               case 1:
                 if (mainSettings.indiBright[0] < 4) mainSettings.indiBright[0]++; else mainSettings.indiBright[0] = 0;
@@ -1091,8 +1110,8 @@ void settings_bright(void)
             break;
 
           //настройка дневной подсветки
-          case 6: if (mainSettings.timeBright[1] < 23) mainSettings.timeBright[1]++; else mainSettings.timeBright[1] = 0; break; //часы
-          case 7:
+          case 7: if (mainSettings.timeBright[1] < 23) mainSettings.timeBright[1]++; else mainSettings.timeBright[1] = 0; break; //часы
+          case 8:
             if (mainSettings.indiBright[1] < 4) mainSettings.indiBright[1]++; else mainSettings.indiBright[1] = 0;
             indiSetBright(brightDefault[mainSettings.indiBright[1]]); //установка яркости индикаторов
             break;
@@ -1125,18 +1144,24 @@ void settings_bright(void)
 
           case 3:
             indiClr(); //очистка индикаторов
-            indiPrint("BRI", 0); //подсветка
+            indiPrint("ANS", 0); //анимация
             for (timer_millis = TIME_MSG_PNT; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
             break;
 
           case 4:
+            indiClr(); //очистка индикаторов
+            indiPrint("BRI", 0); //подсветка
+            for (timer_millis = TIME_MSG_PNT; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
+            break;
+
+          case 5:
             indiClr(); //очистка индикаторов
             if (mainSettings.bright_mode) indiPrint("NHT", 0); //ночь
             else indiPrint("L-T", 0); //уровень подсветки
             for (timer_millis = TIME_MSG_PNT; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
             break;
 
-          case 5:
+          case 6:
             if (mainSettings.bright_mode == 2) {
               indiClr(); //очистка индикаторов
               indiPrint("DAY", 0); //день
@@ -1148,7 +1173,7 @@ void settings_bright(void)
             }
             break;
 
-          case 6:
+          case 7:
             indiClr(); //очистка индикаторов
             indiPrint("DAY", 0); //день
             for (timer_millis = TIME_MSG_PNT; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
@@ -1156,7 +1181,7 @@ void settings_bright(void)
             _bright_block = 0; //разрешаем управление подсветкой
             break;
 
-          case 7:
+          case 8:
             indiSetBright(brightDefault[mainSettings.indiBright[1]]);
             _bright_block = 1; //запрещаем управление подсветкой
             break;
@@ -1165,7 +1190,7 @@ void settings_bright(void)
         break;
 
       case 4: //right hold
-        eeprom_update_block((void*)&mainSettings, (void*)7, sizeof(mainSettings)); //записываем основные настройки в память
+        eeprom_update_block((void*)&mainSettings, (void*)EEPROM_BLOCK_SETTINGS_MAIN, sizeof(mainSettings)); //записываем основные настройки в память
 
         switch (mainSettings.bright_mode) {
           case 0: indiSetBright(brightDefault[mainSettings.bright_levle]); break; //установка яркости индикаторов
@@ -1270,7 +1295,7 @@ void set_timer(void)
         break;
 
       case 4: //right hold
-        eeprom_update_block((void*)&timerSettings, (void*)18, sizeof(timerSettings)); //записываем настройки таймера в память
+        eeprom_update_block((void*)&timerSettings, (void*)EEPROM_BLOCK_SETTINGS_TIMER, sizeof(timerSettings)); //записываем настройки таймера в память
         indiClr(); //очистка индикаторов
         indiPrint("OUT", 0);
         for (timer_millis = TIME_MSG; timer_millis && !check_keys();) data_convert(); // ждем, преобразование данных
