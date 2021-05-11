@@ -1,5 +1,5 @@
 /*
-  Arduino IDE 1.8.13 версия прошивки 1.4.5 от 10.05.21
+  Arduino IDE 1.8.13 версия прошивки 1.4.6 от 11.05.21
   Специльно для проекта "Часы METRO LAST LIGHT"
   Исходник - https://github.com/radon-lab/METRO_LL_clock
   Автор Radon-lab.
@@ -209,6 +209,21 @@ void sleepMode(void) //режим сна
   if (!_sleep) {
     waint_pwr(); //ожидание
     if (!_disableSleep && mainSettings.sleep_time && _timer_sleep == mainSettings.sleep_time) {
+      uint8_t indic[4]; //буфер анимации
+      for (uint8_t s = 0; s < 4; s++) indic[s] = random(0, 7); //выбираем рндомный сигмент
+      for (uint8_t c = 0; c < 7;) { //отрисовываем анимацию
+        data_convert(); //преобразование данных
+        if (check_keys()) return; //если нажата кнопка прерываем сон
+        if (!timer_millis) { //если таймер истек
+          timer_millis = SLEEP_ANIM_TIME; //устанавливаем таймер
+          c++; //смещаем анимацию
+          for (uint8_t i = 0; i < 4; i++) { //стираем сигменты
+            if (indic[i] < 6) indic[i]++; //если не достигнут максимум
+              else indic[i] = 0; //иначе сбрасываем в начало
+            indiSet(indic[i], i, 0); //очищаем сигменты по очереди
+          }
+        }
+      }
       _sleep = 1; //устанавливаем флаг активного сна
       TWI_disable(); //выключение TWI
       indiEnableSleep(); //выключаем дисплей
