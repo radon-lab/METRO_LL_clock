@@ -1,5 +1,5 @@
 /*
-  Arduino IDE 1.8.13 версия прошивки 1.4.6 от 11.05.21
+  Arduino IDE 1.8.13 версия прошивки 1.4.6 от 11.02.22
   Специльно для проекта "Часы METRO LAST LIGHT"
   Исходник - https://github.com/radon-lab/METRO_LL_clock
   Автор Radon-lab.
@@ -165,8 +165,7 @@ void data_convert(void) //преобразование данных
             _timer_secs--; //уменьшаем таймер на 1сек
             //если осталось мало времени
             if (_timer_secs == timerSettings.timer_blink) {
-              _mode = 3; //переходим в режим таймера
-              _disableSleep = 1; //запрещаем сон
+              _timer_sleep = 0; //сбрасываем таймер сна
               if (_sleep) sleepOut(); //выход из сна
             }
             //оповещение окончания таймера
