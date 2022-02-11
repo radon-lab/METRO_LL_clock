@@ -165,7 +165,8 @@ void data_convert(void) //преобразование данных
             _timer_secs--; //уменьшаем таймер на 1сек
             //если осталось мало времени
             if (_timer_secs == timerSettings.timer_blink) {
-              _timer_sleep = 0; //сбрасываем таймер сна
+              _mode = 3; //переходим в режим таймера
+              _disableSleep = 1; //запрещаем сон
               if (_sleep) sleepOut(); //выход из сна
             }
             //оповещение окончания таймера
@@ -307,6 +308,7 @@ void timerMessage(void) //оповещения таймера
   _timer_secs = timerDefault[timerSettings.timer_preset] * 60; //устанавливаем таймер в начало
   flask_state = mainSettings.flask_mode; //обновление стотояния колбы
   _mode = 0; //переходим в режим часов
+  _disableSleep = 0; //разрешаем сон
   _timer_sleep = 0; //сбрасываем таймер сна
   _flask_block = 0; //разрешаем управление колбой
 }
