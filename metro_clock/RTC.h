@@ -15,6 +15,8 @@ void TimeSetDate(const uint8_t *values) // year, month, dayOfMonth, dayOfWeek, h
   RTC_ON; //включаем питание РТС
   RTC_BAT_OFF; //выключаем питание батареи
 
+  _delay_us(100);
+
   wireBeginTransmission(DS1307_ADDRESS); //начало передачи
   wireWrite(0x00); //устанавливаем адрес записи
 
@@ -37,6 +39,8 @@ void TimeGetDate(uint8_t *values) // year, month, dayOfMonth, dayOfWeek, hour, m
 {
   RTC_ON; //включаем питание РТС
   RTC_BAT_OFF; //выключаем питание батареи
+
+  _delay_us(100);
 
   if (wireRequestFrom(DS1307_ADDRESS, 0x00)) return; //запрашиваем чтение данных, если нет ответа выходим
 
