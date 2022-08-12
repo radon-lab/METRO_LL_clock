@@ -314,9 +314,11 @@ ISR(PCINT2_vect, ISR_NOBLOCK) //внешнее прерывание PCINT2
 //-------------------------------------Выход из сна--------------------------------------------------------
 void sleepOut(void) //выход из сна
 {
+  _sec = 0; //разрешаем обновить индикаторы
   _dot = 1; //сбрасываем флаг точек
   _sleep = 0; //сбрасываем флаг активного сна
   _timer_sleep = 0; //сбрасываем таймер сна
+
   timer_dot = 0; //сбрасываем таймер точек
   btn_check = 0; //запрещаем проверку кнопок
 
@@ -325,9 +327,10 @@ void sleepOut(void) //выход из сна
     _animStart = 1; //разрешаем анимацию
   }
 
+  _batCheck(); //проверяем заряд акб
+
   changeBright(); //смена яркости индикаторов
   indiDisableSleep(); //включаем дисплей
-  _batCheck(); //проверяем заряд акб
 }
 //-------------------------------Режим сна----------------------------------------------------
 void sleepMode(void) //режим сна
@@ -335,17 +338,17 @@ void sleepMode(void) //режим сна
   if (!_disableSleep && mainSettings.sleep_time && _timer_sleep == mainSettings.sleep_time) {
     if (mainSettings.sleep_anim) {
       uint8_t indi[4]; //буфер анимации
-      for (uint8_t s = 0; s < 4; s++) indi[s] = readLightSens() % 7; //выбираем рндомный сигмент
+      for (uint8_t s = 0; s < 4; s++) indi[s] = readLightSens() % 7; //выбираем рандомный сегмент
       for (uint8_t c = 0; c < 7;) { //отрисовываем анимацию
         data_convert(); //преобразование данных
         if (check_keys()) return; //если нажата кнопка прерываем сон
         if (!timer_millis) { //если таймер истек
           timer_millis = SLEEP_ANIM_TIME; //устанавливаем таймер
           c++; //смещаем анимацию
-          for (uint8_t i = 0; i < 4; i++) { //стираем сигменты
+          for (uint8_t i = 0; i < 4; i++) { //стираем сегменты
             if (indi[i] < 6) indi[i]++; //если не достигнут максимум
             else indi[i] = 0; //иначе сбрасываем в начало
-            indiSet(indi[i], i, 0); //очищаем сигменты по очереди
+            indiSet(indi[i], i, 0); //очищаем сегменты по очереди
           }
         }
       }
@@ -439,7 +442,7 @@ ISR(TIMER2_OVF_vect) //счет времени
     }
   }
 
-  _sec = 0; //разрешаем обновить индикаторы
+  _sec = 0; //разрешаем обновить данные
 }
 //----------------------------------Преобразование данных---------------------------------------------------------
 void data_convert(void) //преобразование данных
@@ -502,8 +505,8 @@ void data_convert(void) //преобразование данных
 void timerMessage(void) //оповещения таймера
 {
   dot_state = 0; //выключаем точки
-  _msg_type = 0; //сбрасываем тип оповещения
   mainSettings.flask_mode |= 0x80; //запрещаем управление колбой
+  _msg_type = 0; //сбрасываем тип оповещения
   _timer_start = 0; //сбрасываем режим таймера
   for (timer_millis = TIME_MSG_TMR_OVF; timer_millis && !check_keys();) {
     data_convert(); //преобразование данных
@@ -524,9 +527,9 @@ void timerMessage(void) //оповещения таймера
 //-------------------------------Оповещения батареи----------------------------------------------------
 void lowBatMessage(void) //оповещения батареи
 {
-  _msg_type = 0; //сбрасываем тип оповещения
-  mainSettings.flask_mode |= 0x80; //запрещаем управление колбой
   dot_state = 0; //выключаем точки
+  mainSettings.flask_mode |= 0x80; //запрещаем управление колбой
+  _msg_type = 0; //сбрасываем тип оповещения
   uint8_t pos = 0; //позиция надписи
   for (timer_millis = TIME_MSG_BAT; timer_millis && !check_keys();) {
     data_convert(); //преобразование данных
@@ -546,8 +549,8 @@ void lowBatMessage(void) //оповещения батареи
 void pwrDownMessage(void) //оповещения выключения
 {
   if (_sleep) sleepOut(); //выход из сна
-  _msg_type = 0; //сбрасываем тип оповещения
   dot_state = 0; //выключаем точки
+  _msg_type = 0; //сбрасываем тип оповещения
   indiPrint(" OFF", 0); //отрисовка сообщения разряженной батареи
   uint16_t flask_tmr = 0; //таймер мигания колбой
   for (uint16_t tmr = TIME_MSG_BAT; tmr; tmr--) { //ждем
