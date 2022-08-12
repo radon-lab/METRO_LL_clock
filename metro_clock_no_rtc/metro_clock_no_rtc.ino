@@ -1,6 +1,7 @@
 /*
   Arduino IDE 1.8.13 версия прошивки 2.0.0 от 12.08.22
   Специльно для проекта "Часы METRO LAST LIGHT"
+  Версия без DS1307, встроенный кварц 8мГц + внешний 32кГц
   Исходник - https://github.com/radon-lab/METRO_LL_clock
   Автор Radon-lab.
 */
@@ -28,9 +29,9 @@ boolean _animStart = 1; //флаг анимации
 uint16_t _timer_sec = 0; //установленное время таймера
 boolean _timer_start = 0; //флаг работы таймера
 
-boolean _sec = 0; //флаг обновления секунды
 boolean _scr = 0; //флаг обновления секунды
 boolean _dot = 0; //флаг обновления секунды
+volatile boolean _sec = 0; //флаг обновления секунды
 
 uint8_t _timer_sleep = 0; //счетчик ухода в сон
 boolean _disableSleep = 0; //флаг запрета сна
