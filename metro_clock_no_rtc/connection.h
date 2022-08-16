@@ -16,8 +16,8 @@
 #define ANODE_F 10  //пин анода F(0..19)(pin D)
 #define ANODE_G 3   //пин анода G(0..19)(pin D)
 
-#define RIGHT_PIN 2 //пин правой кнопки(0..19)(pin D)
-#define LEFT_PIN 0  //пин левой кнопки(0..19)(pin D)
+#define RIGHT_PIN 2 //пин правой кнопки(2)(pin D)
+#define LEFT_PIN 0  //пин левой кнопки(0..7)(pin D)
 #define DOT_PIN 5   //пин секундных точек(0..19)(pin D)
 #define FLASK_PIN 9 //пин колбы(0..19)(pin D)
 #define SENS_PIN 15 //пин сенсора освещения(0..19)(pin D)
@@ -66,9 +66,9 @@
 #define RIGHT_BIT   DECODE_BIT(RIGHT_PIN)
 #define RIGHT_PORT  DECODE_PORT(RIGHT_PIN)
 
-#define RIGHT_SET   (bitSet(RIGHT_PORT, RIGHT_BIT))
-#define RIGHT_CHK   (bitRead(PIN_REG(RIGHT_PORT), RIGHT_BIT))
-#define RIGHT_INP   (bitClear((DDR_REG(RIGHT_PORT)), RIGHT_BIT))
+#define RIGHT_SET   (BIT_SET(RIGHT_PORT, RIGHT_BIT))
+#define RIGHT_CHK   (BIT_READ(PIN_REG(RIGHT_PORT), RIGHT_BIT))
+#define RIGHT_INP   (BIT_CLEAR((DDR_REG(RIGHT_PORT)), RIGHT_BIT))
 
 #define RIGHT_INIT  RIGHT_SET; RIGHT_INP
 
@@ -76,9 +76,9 @@
 #define LEFT_BIT   DECODE_BIT(LEFT_PIN)
 #define LEFT_PORT  DECODE_PORT(LEFT_PIN)
 
-#define LEFT_SET   (bitSet(LEFT_PORT, LEFT_BIT))
-#define LEFT_CHK   (bitRead(PIN_REG(LEFT_PORT), LEFT_BIT))
-#define LEFT_INP   (bitClear((DDR_REG(LEFT_PORT)), LEFT_BIT))
+#define LEFT_SET   (BIT_SET(LEFT_PORT, LEFT_BIT))
+#define LEFT_CHK   (BIT_READ(PIN_REG(LEFT_PORT), LEFT_BIT))
+#define LEFT_INP   (BIT_CLEAR((DDR_REG(LEFT_PORT)), LEFT_BIT))
 
 #define LEFT_INIT  LEFT_SET; LEFT_INP
 
@@ -87,9 +87,9 @@
 #define DOT_PORT  DECODE_PORT(DOT_PIN)
 
 #define DOT_INV   (DOT_PORT ^= (1 << DOT_BIT))
-#define DOT_ON    (bitSet(DOT_PORT, DOT_BIT))
-#define DOT_OFF   (bitClear(DOT_PORT, DOT_BIT))
-#define DOT_OUT   (bitSet((DDR_REG(DOT_PORT)), DOT_BIT))
+#define DOT_ON    (BIT_SET(DOT_PORT, DOT_BIT))
+#define DOT_OFF   (BIT_CLEAR(DOT_PORT, DOT_BIT))
+#define DOT_OUT   (BIT_SET((DDR_REG(DOT_PORT)), DOT_BIT))
 
 #define DOT_INIT  DOT_OFF; DOT_OUT
 
@@ -97,19 +97,18 @@
 #define FLASK_BIT     DECODE_BIT(FLASK_PIN)
 #define FLASK_PORT    DECODE_PORT(FLASK_PIN)
 
-#define is_FLASK_ON   (bitRead(FLASK_PORT, FLASK_BIT))
-#define FLASK_ON      (bitSet(FLASK_PORT, FLASK_BIT))
-#define FLASK_OFF     (bitClear(FLASK_PORT, FLASK_BIT))
-#define FLASK_OUT     (bitSet((DDR_REG(FLASK_PORT)), FLASK_BIT))
+#define FLASK_ON      (BIT_SET(FLASK_PORT, FLASK_BIT))
+#define FLASK_OFF     (BIT_CLEAR(FLASK_PORT, FLASK_BIT))
+#define FLASK_OUT     (BIT_SET((DDR_REG(FLASK_PORT)), FLASK_BIT))
 
-#define FLASK_INIT  FLASK_OFF; FLASK_OUT
+#define FLASK_INIT    FLASK_OFF; FLASK_OUT
 
 //пин сенсора освещения
 #define SENS_BIT   DECODE_BIT(SENS_PIN)
 #define SENS_PORT  DECODE_PORT(SENS_PIN)
 
-#define SENS_ON    (bitSet(SENS_PORT, SENS_BIT))
-#define SENS_OFF   (bitClear(SENS_PORT, SENS_BIT))
-#define SENS_OUT   (bitSet((DDR_REG(SENS_PORT)), SENS_BIT))
+#define SENS_ON    (BIT_SET(SENS_PORT, SENS_BIT))
+#define SENS_OFF   (BIT_CLEAR(SENS_PORT, SENS_BIT))
+#define SENS_OUT   (BIT_SET((DDR_REG(SENS_PORT)), SENS_BIT))
 
 #define SENS_INIT  SENS_OFF; SENS_OUT

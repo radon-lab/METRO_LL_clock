@@ -1,87 +1,91 @@
 #include <avr/pgmspace.h>
 
+#define SEGMENT_A 0x80 //номер сегмента A
+#define SEGMENT_B 0x40 //номер сегмента B
+#define SEGMENT_C 0x20 //номер сегмента C
+#define SEGMENT_D 0x10 //номер сегмента D
+#define SEGMENT_E 0x08 //номер сегмента E
+#define SEGMENT_F 0x04 //номер сегмента F
+#define SEGMENT_G 0x02 //номер сегмента G
+#define SEGMENT_NULL 0x00 //пустой байт шрифта
 
-//0B(A, B, C, D, E, F, G, 0),
-//  
-//    A  ---  A
-//  F  ||   || B
-//  F  ||   || B
-//    G  ---  G
-//  E  ||   || C
-//  E  ||   || C
-//    C  ---  D
-//     
-
+/*    A  ---  A
+    F  ||   || B
+    F  ||   || B
+      G  ---  G
+    E  ||   || C
+    E  ||   || C
+      D  ---  D
+*/
 
 //--------------Массив шрифтов--------------
-
 const uint8_t indiFont[] PROGMEM =
 {
-0B00000000,   // sp
-0B01100000,   // !
-0B01000100,   // "
-0B11000110,   // #
-0B00000000,   // $
-0B00000000,   // %
-0B00000000,   // &
-0B00000000,   // '
-0B01100000,   // (
-0B00000110,   // )
-0B00000000,   // *
-0B00000000,   // +
-0B00100000,   // ,
-0B00000010,   // -
-0B00000000,   // .
-0B01001010,   // /
+  SEGMENT_NULL,                                                                      // sp
+  SEGMENT_B | SEGMENT_C,                                                             // !
+  SEGMENT_B | SEGMENT_F,                                                             // "
+  SEGMENT_A | SEGMENT_B | SEGMENT_F | SEGMENT_G,                                     // #
+  SEGMENT_NULL,                                                                      // $
+  SEGMENT_NULL,                                                                      // %
+  SEGMENT_NULL,                                                                      // &
+  SEGMENT_NULL,                                                                      // '
+  SEGMENT_B | SEGMENT_C,                                                             // (
+  SEGMENT_F | SEGMENT_G,                                                             // )
+  SEGMENT_NULL,                                                                      // *
+  SEGMENT_NULL,                                                                      // +
+  SEGMENT_C,                                                                         // ,
+  SEGMENT_G,                                                                         // -
+  SEGMENT_NULL,                                                                      // .
+  SEGMENT_B | SEGMENT_E | SEGMENT_G,                                                 // /
 
-0B11111100,   // 0
-0B01100000,   // 1
-0B11011010,   // 2
-0B11110010,   // 3
-0B01100110,   // 4
-0B10110110,   // 5
-0B10111110,   // 6
-0B11100000,   // 7
-0B11111110,   // 8
-0B11110110,   // 9
-0B00000000,   // :
-0B00000000,   // ;
-0B00000000,   // <
-0B01000010,   // =
-0B00000000,   // >
-0B00000000,   // ?
+  SEGMENT_A | SEGMENT_B | SEGMENT_C | SEGMENT_D | SEGMENT_E | SEGMENT_F,             // 0
+  SEGMENT_B | SEGMENT_C,                                                             // 1
+  SEGMENT_A | SEGMENT_B | SEGMENT_D | SEGMENT_E | SEGMENT_G,                         // 2
+  SEGMENT_A | SEGMENT_B | SEGMENT_C | SEGMENT_D | SEGMENT_G,                         // 3
+  SEGMENT_B | SEGMENT_C | SEGMENT_F | SEGMENT_G,                                     // 4
+  SEGMENT_A | SEGMENT_C | SEGMENT_D | SEGMENT_F | SEGMENT_G,                         // 5
+  SEGMENT_A | SEGMENT_C | SEGMENT_D | SEGMENT_E | SEGMENT_F | SEGMENT_G,             // 6
+  SEGMENT_A | SEGMENT_B | SEGMENT_C,                                                 // 7
+  SEGMENT_A | SEGMENT_B | SEGMENT_C | SEGMENT_D | SEGMENT_E | SEGMENT_F | SEGMENT_G, // 8
+  SEGMENT_A | SEGMENT_B | SEGMENT_C | SEGMENT_D | SEGMENT_F | SEGMENT_G,             // 9
+  SEGMENT_NULL,                                                                      // :
+  SEGMENT_NULL,                                                                      // ;
+  SEGMENT_NULL,                                                                      // <
+  SEGMENT_D | SEGMENT_G,                                                             // =
+  SEGMENT_NULL,                                                                      // >
+  SEGMENT_NULL,                                                                      // ?
 
-0B00000000,   // @
-0B11101110,   // A
-0B00111110,   // B
-0B10011100,   // C
-0B01111010,   // D
-0B10011110,   // E
-0B10001110,   // F
-0B10111100,   // G
-0B00101110,   // H
-0B00001100,   // I
-0B01110000,   // J
-0B10000000,   // K
-0B00011100,   // L
-0B10000000,   // M
-0B00101010,   // N
-0B00111010,   // O
+  SEGMENT_NULL,                                                                      // @
+  SEGMENT_A | SEGMENT_B | SEGMENT_C | SEGMENT_E | SEGMENT_F | SEGMENT_G,             // A
+  SEGMENT_C | SEGMENT_D | SEGMENT_E | SEGMENT_F | SEGMENT_G,                         // B
+  SEGMENT_A | SEGMENT_D | SEGMENT_E | SEGMENT_F,                                     // C
+  SEGMENT_B | SEGMENT_C | SEGMENT_D | SEGMENT_E | SEGMENT_G,                         // D
+  SEGMENT_A | SEGMENT_D | SEGMENT_E | SEGMENT_F | SEGMENT_G,                         // E
+  SEGMENT_A | SEGMENT_E | SEGMENT_F | SEGMENT_G,                                     // F
+  SEGMENT_A | SEGMENT_C | SEGMENT_D | SEGMENT_E | SEGMENT_F,                         // G
+  SEGMENT_C | SEGMENT_E | SEGMENT_F | SEGMENT_G,                                     // H
+  SEGMENT_E | SEGMENT_F,                                                             // I
+  SEGMENT_B | SEGMENT_C | SEGMENT_D,                                                 // J
+  SEGMENT_A,                                                                         // K
+  SEGMENT_D | SEGMENT_E | SEGMENT_F,                                                 // L
+  SEGMENT_A,                                                                         // M
+  SEGMENT_C | SEGMENT_E | SEGMENT_G,                                                 // N
+  SEGMENT_C | SEGMENT_D | SEGMENT_E | SEGMENT_G,                                     // O
 
-0B11001110,   // P
-0B10000000,   // Q
-0B00001010,   // R
-0B10110110,   // S
-0B00011110,   // T
-0B01111100,   // U
-0B00111000,   // V
-0B10000000,   // W
-0B01101110,   // X
-0B01110110,   // Y
-0B11011010,   // Z
-0B10011100,   // [
-0B10000000,   // Backslash (Checker pattern)
-0B11110000,   // ]
-0B11000100,   // ^
-0B00010000,   // _
+  SEGMENT_A | SEGMENT_B | SEGMENT_E | SEGMENT_F | SEGMENT_G,                         // P
+  SEGMENT_A,                                                                         // Q
+  SEGMENT_E | SEGMENT_G,                                                             // R
+  SEGMENT_A | SEGMENT_C | SEGMENT_D | SEGMENT_F | SEGMENT_G,                         // S
+  SEGMENT_D | SEGMENT_E | SEGMENT_F | SEGMENT_G,                                     // T
+  SEGMENT_B | SEGMENT_C | SEGMENT_D | SEGMENT_E | SEGMENT_F,                         // U
+  SEGMENT_C | SEGMENT_D | SEGMENT_E,                                                 // V
+  SEGMENT_A,                                                                         // W
+  SEGMENT_B | SEGMENT_C | SEGMENT_E | SEGMENT_F | SEGMENT_G,                         // X
+  SEGMENT_B | SEGMENT_C | SEGMENT_D | SEGMENT_F | SEGMENT_G,                         // Y
+  SEGMENT_A | SEGMENT_B | SEGMENT_D | SEGMENT_E | SEGMENT_G,                         // Z
+  SEGMENT_A | SEGMENT_D | SEGMENT_E | SEGMENT_F,                                     // [
+  SEGMENT_A,                                                                         // Backslash
+  SEGMENT_A | SEGMENT_B | SEGMENT_C | SEGMENT_D,                                     // ]
+  SEGMENT_A | SEGMENT_B | SEGMENT_F,                                                 // ^
+  SEGMENT_D                                                                          // _
 };
