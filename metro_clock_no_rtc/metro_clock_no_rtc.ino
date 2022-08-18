@@ -227,7 +227,7 @@ void changeBright(void) //установка яркости от времени 
 //----------------------------------------------------------------------------------
 void batCheck(void)
 {
-  bat = map(constrain(read_VCC(), CONVERT_VCC(BAT_MIN_V), CONVERT_VCC(BAT_MAX_V)), CONVERT_VCC(BAT_MIN_V), CONVERT_VCC(BAT_MAX_V), 0, 100); //состояние батареи
+  bat = map(constrain(read_VCC(), CONVERT_VCC(BAT_MAX_V), CONVERT_VCC(BAT_MIN_V)), CONVERT_VCC(BAT_MIN_V), CONVERT_VCC(BAT_MAX_V), 0, 100); //состояние батареи
   if (bat < LOW_BAT_P) _msg_type = 3; //если батарея разряжена
   else if (bat < MSG_BAT_P) _msg_type = 2; //если осталось мало заряда
   bat_tmr = 0; //сбрасываем таймер
