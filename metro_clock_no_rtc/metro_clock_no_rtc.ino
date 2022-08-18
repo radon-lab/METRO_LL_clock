@@ -1,5 +1,5 @@
 /*
-  Arduino IDE 1.8.13 версия прошивки 2.0.0 от 14.08.22
+  Arduino IDE 1.8.13 версия прошивки 2.0.0 от 18.08.22
   Специльно для проекта "Часы METRO LAST LIGHT"
   Версия без DS1307, встроенный кварц 8мГц + внешний 32кГц
   Исходник - https://github.com/radon-lab/METRO_LL_clock
@@ -83,6 +83,8 @@ enum {
   RIGHT_KEY_PRESS, //клик правой кнопкой
   RIGHT_KEY_HOLD //удержание правой кнопки
 };
+
+#define CONVERT_VCC(vcc) (uint8_t)((REFERENCE * 256) / vcc)
 
 #define EEPROM_BLOCK_TIME EEPROM_BLOCK_NULL //блок памяти времени
 #define EEPROM_BLOCK_SETTINGS_MAIN (EEPROM_BLOCK_TIME + sizeof(time)) //блок памяти основных настроек
@@ -225,8 +227,7 @@ void changeBright(void) //установка яркости от времени 
 //----------------------------------------------------------------------------------
 void batCheck(void)
 {
-  uint16_t vcc = (1.10 * 255.0) / read_VCC() * 100; //рассчитываем напряжение
-  bat = map(constrain(vcc, BAT_MIN_V, BAT_MAX_V), BAT_MIN_V, BAT_MAX_V, 0, 100); //состояние батареи
+  bat = map(constrain(read_VCC(), CONVERT_VCC(BAT_MIN_V), CONVERT_VCC(BAT_MAX_V)), CONVERT_VCC(BAT_MIN_V), CONVERT_VCC(BAT_MAX_V), 0, 100); //состояние батареи
   if (bat < LOW_BAT_P) _msg_type = 3; //если батарея разряжена
   else if (bat < MSG_BAT_P) _msg_type = 2; //если осталось мало заряда
   bat_tmr = 0; //сбрасываем таймер
