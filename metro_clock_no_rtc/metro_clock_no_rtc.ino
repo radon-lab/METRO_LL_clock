@@ -1,5 +1,5 @@
 /*
-  Arduino IDE 1.8.13 версия прошивки 2.0.1 от 22.08.22
+  Arduino IDE 1.8.13 версия прошивки 2.0.1 от 27.08.22
   Специльно для проекта "Часы METRO LAST LIGHT"
   Версия без DS1307, встроенный кварц 8мГц + внешний 32кГц
   Исходник - https://github.com/radon-lab/METRO_LL_clock
@@ -488,12 +488,15 @@ ISR(TIMER2_OVF_vect) //счет времени
       RTC.m = 0; //сбросили минуты
 
       if (RTC.correct && ++RTC.correctNow >= RTC.correct) { //если пришло время коррекции
-        RTC.correctNow = 0; //сбросили коррекцию
         if (RTC.correctDrv) { //если откатываем секунду
           RTC.m = 59; //сбросили минуты
           RTC.s = 59; //сбросили секунды
+          RTC.correctNow = 255; //сбросили коррекцию
         }
-        else RTC.s = 1; //иначе прибавляем секунду
+        else {
+          RTC.s = 1; //иначе прибавляем секунду
+          RTC.correctNow = 0; //сбросили коррекцию
+        }
       }
       else {
         if (++RTC.h > 23) { //часы
@@ -885,7 +888,7 @@ void settings_time(void)
           case SET_TIME_YEAR: if (RTC.YY > 21) RTC.YY--; else RTC.YY = 99; break; //год
 
           //настройка коррекции
-          case SET_TIME_CORRECT: if (cur_correct > -168) cur_correct--; RTC.correctNow = 0; break; //коррекция
+          case SET_TIME_CORRECT: if (cur_correct > -168) cur_correct--; RTC.correctNow = 255; break; //коррекция
         }
         blink_data = 0; //сбрасываем флаг мигания
         break;
@@ -908,7 +911,7 @@ void settings_time(void)
           case SET_TIME_YEAR: if (RTC.YY < 99) RTC.YY++; else RTC.YY = 21; break; //год
 
           //настройка коррекции
-          case SET_TIME_CORRECT: if (cur_correct < 168) cur_correct++; RTC.correctNow = 0; break; //коррекция
+          case SET_TIME_CORRECT: if (cur_correct < 168) cur_correct++; RTC.correctNow = 255; break; //коррекция
         }
         blink_data = 0; //сбрасываем флаг мигания
         break;
