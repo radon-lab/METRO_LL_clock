@@ -1,11 +1,11 @@
 #include <Arduino.h>
 #include "font.c"
 
-volatile uint8_t* anodePort[] = {&ANODE_A_PORT, &ANODE_B_PORT, &ANODE_C_PORT, &ANODE_D_PORT, &ANODE_E_PORT, &ANODE_F_PORT, &ANODE_G_PORT}; //таблица портов анодов индикатора
-const uint8_t anodeBit[] = {0x01 << ANODE_A_BIT, 0x01 << ANODE_B_BIT, 0x01 << ANODE_C_BIT, 0x01 << ANODE_D_BIT, 0x01 << ANODE_E_BIT, 0x01 << ANODE_F_BIT, 0x01 << ANODE_G_BIT}; //таблица бит анодов индикатора
+volatile uint8_t* segPort[] = {&SEG_A_PORT, &SEG_B_PORT, &SEG_C_PORT, &SEG_D_PORT, &SEG_E_PORT, &SEG_F_PORT, &SEG_G_PORT}; //таблица портов сегмента индикатора
+const uint8_t segBit[] = {0x01 << SEG_A_BIT, 0x01 << SEG_B_BIT, 0x01 << SEG_C_BIT, 0x01 << SEG_D_BIT, 0x01 << SEG_E_BIT, 0x01 << SEG_F_BIT, 0x01 << SEG_G_BIT}; //таблица бит сегмента индикатора
 
-volatile uint8_t* cathodePort[] = {&CATHODE_1_PORT, &CATHODE_2_PORT, &CATHODE_3_PORT, &CATHODE_4_PORT}; //таблица портов катодов индикатора
-const uint8_t cathodeBit[] = {0x01 << CATHODE_1_BIT, 0x01 << CATHODE_2_BIT, 0x01 << CATHODE_3_BIT, 0x01 << CATHODE_4_BIT}; //таблица бит катодов индикатора
+volatile uint8_t* indiPort[] = {&INDI_1_PORT, &INDI_2_PORT, &INDI_3_PORT, &INDI_4_PORT}; //таблица портов индикаторов
+const uint8_t indiBit[] = {0x01 << INDI_1_BIT, 0x01 << INDI_2_BIT, 0x01 << INDI_3_BIT, 0x01 << INDI_4_BIT}; //таблица бит индикаторов
 
 uint8_t indi_buf[4];
 uint8_t indi_dimm[4];
@@ -17,9 +17,17 @@ volatile uint8_t tick_ms; //счетчик тиков для обработки 
 
 #define fontbyte(x) pgm_read_byte(&indiFont[x])
 
-#define _INDI_ON  PRR &= ~(0x01 << PRTIM0); TIMSK0 = (0x01 << OCIE0B) | (0x01 << OCIE0A) | (0x01 << TOIE0)
-#define _INDI_OFF TCNT0 = 128; TIMSK0 = 0; PRR |= (0x01 << PRTIM0)
+#define _INDI_START  PRR &= ~(0x01 << PRTIM0); TIMSK0 = (0x01 << OCIE0B) | (0x01 << OCIE0A) | (0x01 << TOIE0)
+#define _INDI_STOP TCNT0 = 128; TIMSK0 = 0; PRR |= (0x01 << PRTIM0)
 
+#if INDI_CONNECT_MODE
+#define _OUT_SET(port, bit) (*port &= ~bit)
+#define _OUT_CLEAR(port, bit) (*port |= bit)
+#else
+#define _OUT_SET(port, bit) (*port |= bit)
+#define _OUT_CLEAR(port, bit) (*port &= ~bit)
+#endif
+#define _OUT_PORT(port, bit) (*(port - 1) |= bit)
 
 void indiSet(uint8_t st, uint8_t indi, boolean state = 1);
 void indiPrint(const char* str, int8_t indi); //отрисовка символов
@@ -42,16 +50,16 @@ ISR(TIMER0_OVF_vect) //генерация символов
 
   uint8_t buff = 0x80;
   for (uint8_t i = 0; i < 7; i++) {
-    if (indi_buf[indi_state] & buff) *anodePort[i] |= anodeBit[i]; //включаем сегмент
-    else *anodePort[i] &= ~anodeBit[i]; //выключаем сегмент
+    if (indi_buf[indi_state] & buff) _OUT_SET(segPort[i], segBit[i]); //включаем сегмент
+    else _OUT_CLEAR(segPort[i], segBit[i]); //выключаем сегмент
     buff >>= 0x01;
   }
-  *cathodePort[indi_state] &= ~cathodeBit[indi_state]; //включаем индикатор
+  _OUT_CLEAR(indiPort[indi_state], indiBit[indi_state]); //включаем индикатор
 
   tick_ms++;
 }
 ISR(TIMER0_COMPA_vect) {
-  *cathodePort[indi_state] |= cathodeBit[indi_state]; //выключаем индикатор
+  _OUT_SET(indiPort[indi_state], indiBit[indi_state]); //выключаем индикатор
   if (++indi_state > 3) indi_state = 0; //переходим к следующему индикатору
 }
 ISR(TIMER0_COMPB_vect) {
@@ -62,14 +70,14 @@ ISR(TIMER0_COMPB_vect) {
 void indiInit(void) //инициализация индикаторов
 {
   for (uint8_t i = 0; i < 7; i++) {
-    *anodePort[i] &= ~anodeBit[i]; //выключаем сегмент
-    *(anodePort[i] - 1) |= anodeBit[i];
+    _OUT_CLEAR(segPort[i], segBit[i]); //выключаем сегмент
+    _OUT_PORT(segPort[i], segBit[i]); //настраиваем как выход
   }
 
   for (uint8_t i = 0; i < 4; i++) {
-    *cathodePort[i] |= cathodeBit[i]; //выключаем индикатор
-    *(cathodePort[i] - 1) |= cathodeBit[i];
-    indi_dimm[i] = 128 + brightDefault[0];
+    _OUT_SET(indiPort[i], indiBit[i]); //выключаем индикатор
+    _OUT_PORT(indiPort[i], indiBit[i]); //настраиваем как выход
+    indi_dimm[i] = 128 + brightDefault[0]; //устанавливаем яркость
   }
 
   for (uint8_t i = 0; i < 2; i++) flash_dimm[i] = 128 + brightDefault[0];
@@ -95,9 +103,9 @@ void indiInit(void) //инициализация индикаторов
 //-------------------------Включение режима сна-------------------------------
 void indiEnableSleep(void) //включение режима сна
 {
-  _INDI_OFF; //отключаем генирацию
-  for (uint8_t i = 0; i < 7; i++) *anodePort[i] &= ~anodeBit[i]; //выключаем сегмент
-  for (uint8_t i = 0; i < 4; i++) *cathodePort[i] |= cathodeBit[i]; //выключаем индикатор
+  _INDI_STOP; //отключаем индикацию
+  for (uint8_t i = 0; i < 7; i++) _OUT_CLEAR(segPort[i], segBit[i]); //выключаем сегмент
+  for (uint8_t i = 0; i < 4; i++) _OUT_SET(indiPort[i], indiBit[i]); //выключаем индикатор
   dot_state = 0; //выключаем точки
   DOT_OFF; //выключаем точки
   FLASK_OFF; //выключаем колбу
@@ -106,7 +114,7 @@ void indiEnableSleep(void) //включение режима сна
 void indiDisableSleep(void) //выключение режима сна
 {
   for (uint8_t i = 0; i < 4; i++) indi_buf[i] = 0; //очищаем буфер
-  _INDI_ON; //запускаем генерацию
+  _INDI_START; //запускаем генерацию
 }
 //-------------------Установка яркости индикатора------------------------------
 void indiSetBright(uint8_t indi, uint8_t pwm) //установка яркости индикатора
