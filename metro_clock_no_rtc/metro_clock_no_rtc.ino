@@ -1,5 +1,5 @@
 /*
-  Arduino IDE 1.8.13 версия прошивки 2.1.0 от 04.10.22
+  Arduino IDE 1.8.13 версия прошивки 2.1.1 от 30.10.22
   Специльно для проекта "Часы METRO LAST LIGHT"
   Версия без DS1307, встроенный кварц 8мГц + внешний 32кГц
   Исходник - https://github.com/radon-lab/METRO_LL_clock
@@ -57,6 +57,7 @@ struct time { //структура времени
   uint8_t correct;
   uint8_t correctNow;
   boolean correctDrv;
+  boolean timeFormat;
 } RTC;
 
 struct Settings1 { //структура основных настроек
@@ -101,6 +102,7 @@ enum {
   SET_TIME_MONTH, //настройка месяца
   SET_TIME_YEAR, //настройка года
   SET_TIME_CORRECT, //настройка коррекции
+  SET_TIME_FORMAT, //настройка формата времени
   SET_TIME_MAX_ITEMS //максимум пунктов меню настроек времени
 };
 
@@ -257,6 +259,8 @@ void changeBright(void) //установка яркости от времени 
     case 1: indiSetBright(brightDefault[mainSettings.indiBright[checkTimeBright()]]); break; //установка яркости индикаторов
     case 2: indiSetBright(brightDefault[lightSens()]); break; //установка яркости индикаторов
   }
+  if (RTC.h > 11) DOT_PM_ON; //если больше 12 часов
+  else DOT_PM_OFF; //иначе выключаем индикатор
 }
 //----------------------------------------------------------------------------------
 void batCheck(void)
@@ -513,6 +517,8 @@ ISR(TIMER2_OVF_vect) //счет времени
         }
       }
       if (mainSettings.bright_mode == 1) indiSetBright(brightDefault[mainSettings.indiBright[checkTimeBright()]]); //установка яркости индикаторов
+      if (RTC.h > 11) DOT_PM_ON; //если больше 12 часов
+      else DOT_PM_OFF; //иначе выключаем индикатор
     }
   }
 
@@ -676,10 +682,13 @@ void animFlip(void) //анимция перелистывания
     uint8_t numState = 0; //фаза числа
     uint8_t stopTick = 0; //фаза числа
 
-    anim_buf[0] = RTC.h / 10; //часы
-    anim_buf[1] = RTC.h % 10; //часы
-    anim_buf[2] = RTC.m / 10; //минуты
-    anim_buf[3] = RTC.m % 10; //минуты
+    uint8_t timeHour = (RTC.timeFormat) ? get_12h(RTC.h) : RTC.h; //текущий час
+    uint8_t timeMins = RTC.m; //текущая минута
+
+    anim_buf[0] = timeHour / 10; //часы
+    anim_buf[1] = timeHour % 10; //часы
+    anim_buf[2] = timeMins / 10; //минуты
+    anim_buf[3] = timeMins % 10; //минуты
 
     switch (mainSettings.anim_mode) {
       case FLIP_REW_NUMBERS_CIRCLE:
@@ -707,22 +716,22 @@ void animFlip(void) //анимция перелистывания
           if (!timer_millis) { //если таймер отработал
             i = 0; //сбрасываем счетчик циклов
             indiPrintNum(anim_buf[0], 0); //вывод часов
-            if (anim_buf[0] > RTC.h / 10) {
+            if (anim_buf[0] > timeHour / 10) {
               anim_buf[0]--;
               i++;
             }
             indiPrintNum(anim_buf[1], 1); //вывод часов
-            if (anim_buf[1] > RTC.h % 10) {
+            if (anim_buf[1] > timeHour % 10) {
               anim_buf[1]--;
               i++;
             }
             indiPrintNum(anim_buf[2], 2); //вывод минут
-            if (anim_buf[2] > RTC.m / 10) {
+            if (anim_buf[2] > timeMins / 10) {
               anim_buf[2]--;
               i++;
             }
             indiPrintNum(anim_buf[3], 3); //вывод минут
-            if (anim_buf[3] > RTC.m % 10) {
+            if (anim_buf[3] > timeMins % 10) {
               anim_buf[3]--;
               i++;
             }
@@ -773,31 +782,31 @@ void animFlip(void) //анимция перелистывания
             if (numState < 4) numState++;
             else {
               numState = i = stopTick = 0;
-              if (anim_buf[0] < RTC.h / 10) {
+              if (anim_buf[0] < timeHour / 10) {
                 anim_buf[0]++;
                 i++;
               }
               else stopTick += FLIP_DRUM_STOP;
-              if (anim_buf[1] < RTC.h % 10) {
+              if (anim_buf[1] < timeHour % 10) {
                 anim_buf[1]++;
                 i++;
               }
               else stopTick += FLIP_DRUM_STOP;
-              if (anim_buf[2] < RTC.m / 10) {
+              if (anim_buf[2] < timeMins / 10) {
                 anim_buf[2]++;
                 i++;
               }
               else stopTick += FLIP_DRUM_STOP;
-              if (anim_buf[3] < RTC.m % 10) {
+              if (anim_buf[3] < timeMins % 10) {
                 anim_buf[3]++;
                 i++;
               }
               else stopTick += FLIP_DRUM_STOP;
             }
-            if (!stopIndi[0] && anim_buf[0] == RTC.h / 10 && numState >= 2) stopIndi[0] = 1;
-            if (!stopIndi[1] && anim_buf[1] == RTC.h % 10 && numState >= 2) stopIndi[1] = 1;
-            if (!stopIndi[2] && anim_buf[2] == RTC.m / 10 && numState >= 2) stopIndi[2] = 1;
-            if (!stopIndi[3] && anim_buf[3] == RTC.m % 10 && numState >= 2) stopIndi[3] = 1;
+            if (!stopIndi[0] && anim_buf[0] == timeHour / 10 && numState >= 2) stopIndi[0] = 1;
+            if (!stopIndi[1] && anim_buf[1] == timeHour % 10 && numState >= 2) stopIndi[1] = 1;
+            if (!stopIndi[2] && anim_buf[2] == timeMins / 10 && numState >= 2) stopIndi[2] = 1;
+            if (!stopIndi[3] && anim_buf[3] == timeMins % 10 && numState >= 2) stopIndi[3] = 1;
 
             for (uint8_t c = 0; c < 4; c++) {
               if (!stopIndi[c]) indi_buf[c] = numbersForAnim[anim_buf[c]][numState]; //отрисовываем
@@ -864,6 +873,9 @@ void settings_time(void)
         case SET_TIME_CORRECT:
           if (!blink_data) indiPrintNum(cur_correct, 0, 4, ' '); //вывод коррекции
           break;
+        case SET_TIME_FORMAT:
+          if (!blink_data) indiPrintNum((RTC.timeFormat) ? 12 : 24, 0, 4, ' '); //вывод формата времени
+          break;
       }
       blink_data = !blink_data; //мигание сигментами
     }
@@ -889,6 +901,9 @@ void settings_time(void)
 
           //настройка коррекции
           case SET_TIME_CORRECT: if (cur_correct > -168) cur_correct--; RTC.correctNow = 255; break; //коррекция
+
+          //настройка формата времени
+          case SET_TIME_FORMAT: RTC.timeFormat = !RTC.timeFormat; break; //формат времени
         }
         blink_data = 0; //сбрасываем флаг мигания
         break;
@@ -912,6 +927,9 @@ void settings_time(void)
 
           //настройка коррекции
           case SET_TIME_CORRECT: if (cur_correct < 168) cur_correct++; RTC.correctNow = 255; break; //коррекция
+
+          //настройка формата времени
+          case SET_TIME_FORMAT: RTC.timeFormat = !RTC.timeFormat; break; //формат времени
         }
         blink_data = 0; //сбрасываем флаг мигания
         break;
@@ -938,6 +956,12 @@ void settings_time(void)
             break;
 
           case SET_TIME_CORRECT:
+            indiClr(); //очистка индикаторов
+            indiPrint("C", 0);
+            _wait(TIME_MSG_PNT); //ждем
+            break;
+
+          case SET_TIME_FORMAT:
             indiClr(); //очистка индикаторов
             indiPrint("C", 0);
             _wait(TIME_MSG_PNT); //ждем
@@ -1372,7 +1396,7 @@ void main_screen(void) //главный экран
           _scr = 1; //сбрасываем флаг
           switch (_mode) {
             case 0: //режим часов
-              indiPrintNum(RTC.h, 0, 2, '0'); //вывод часов
+              indiPrintNum((RTC.timeFormat) ? get_12h(RTC.h) : RTC.h, 0, 2, '0'); //вывод часов
               indiPrintNum(RTC.m, 2, 2, '0'); //вывод минут
               break;
             case 1: //режим заряда акб

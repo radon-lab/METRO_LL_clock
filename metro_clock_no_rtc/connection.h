@@ -16,11 +16,12 @@
 #define SEG_F_PIN 10  //пин сегмента F(0..19)(pin D)
 #define SEG_G_PIN 3   //пин сегмента G(0..19)(pin D)
 
-#define RIGHT_PIN 2 //пин правой кнопки(2)(pin D)
-#define LEFT_PIN 0  //пин левой кнопки(0..7)(pin D)
-#define DOT_PIN 5   //пин секундных точек(0..19)(pin D)
-#define FLASK_PIN 9 //пин колбы(0..19)(pin D)
-#define SENS_PIN 15 //пин сенсора освещения(0..19)(pin D)
+#define RIGHT_PIN 2   //пин правой кнопки(2)(pin D)
+#define LEFT_PIN 0    //пин левой кнопки(0..7)(pin D)
+#define DOT_PIN 5     //пин секундных точек(0..19)(pin D)
+#define DOT_PM_PIN 17 //пин индикатора PM(0..19)(pin D)
+#define FLASK_PIN 9   //пин колбы(0..19)(pin D)
+#define SENS_PIN 15   //пин сенсора освещения(0..19)(pin D)
 
 #define SENS_ANALOG_PIN 6 //аналоговый пин сенсора освещения(0..7)(pin A)
 
@@ -92,6 +93,16 @@
 #define DOT_OUT   (BIT_SET((DDR_REG(DOT_PORT)), DOT_BIT))
 
 #define DOT_INIT  DOT_OFF; DOT_OUT
+
+//пин точек
+#define DOT_PM_BIT   DECODE_BIT(DOT_PM_PIN)
+#define DOT_PM_PORT  DECODE_PORT(DOT_PM_PIN)
+
+#define DOT_PM_ON    (BIT_SET(DOT_PM_PORT, DOT_PM_BIT))
+#define DOT_PM_OFF   (BIT_CLEAR(DOT_PM_PORT, DOT_PM_BIT))
+#define DOT_PM_OUT   (BIT_SET((DDR_REG(DOT_PM_PORT)), DOT_PM_BIT))
+
+#define DOT_PM_INIT     DOT_PM_OFF; DOT_PM_OUT
 
 //пин колбы
 #define FLASK_BIT     DECODE_BIT(FLASK_PIN)
