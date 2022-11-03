@@ -1,5 +1,5 @@
 /*
-  Arduino IDE 1.8.13 версия прошивки 2.1.1 от 30.10.22
+  Arduino IDE 1.8.13 версия прошивки 2.1.1 от 02.11.22
   Специльно для проекта "Часы METRO LAST LIGHT"
   Версия без DS1307, встроенный кварц 8мГц + внешний 32кГц
   Исходник - https://github.com/radon-lab/METRO_LL_clock
@@ -132,6 +132,7 @@ int main(void) //инициализация
   LEFT_INIT; //инициализация левой кнопки
   RIGHT_INIT; //инициализация правой кнопки
   DOT_INIT; //инициализация точек
+  DOT_PM_INIT; //инициализация точки PM
   FLASK_INIT; //инициализация колбы
   SENS_INIT; //инициализация сенсора освещения
 
@@ -259,8 +260,7 @@ void changeBright(void) //установка яркости от времени 
     case 1: indiSetBright(brightDefault[mainSettings.indiBright[checkTimeBright()]]); break; //установка яркости индикаторов
     case 2: indiSetBright(brightDefault[lightSens()]); break; //установка яркости индикаторов
   }
-  if (RTC.h > 11) DOT_PM_ON; //если больше 12 часов
-  else DOT_PM_OFF; //иначе выключаем индикатор
+  pm_state = (boolean)(RTC.h > 11); //проверяем состояние индикатора PM
 }
 //----------------------------------------------------------------------------------
 void batCheck(void)
@@ -517,8 +517,7 @@ ISR(TIMER2_OVF_vect) //счет времени
         }
       }
       if (mainSettings.bright_mode == 1) indiSetBright(brightDefault[mainSettings.indiBright[checkTimeBright()]]); //установка яркости индикаторов
-      if (RTC.h > 11) DOT_PM_ON; //если больше 12 часов
-      else DOT_PM_OFF; //иначе выключаем индикатор
+      pm_state = (boolean)(RTC.h > 11); //проверяем состояние индикатора PM
     }
   }
 

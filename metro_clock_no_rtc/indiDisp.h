@@ -9,7 +9,8 @@ const uint8_t indiBit[] = {0x01 << INDI_1_BIT, 0x01 << INDI_2_BIT, 0x01 << INDI_
 
 uint8_t indi_buf[4];
 uint8_t indi_dimm[4];
-uint8_t flash_dimm[2];
+uint8_t flash_dimm[3];
+boolean pm_state = 1;
 boolean dot_state = 1;
 boolean flask_state = 1;
 volatile uint8_t indi_state;
@@ -41,9 +42,13 @@ ISR(TIMER0_OVF_vect) //генерация символов
       OCR0B = flash_dimm[0]; //устанавливаем яркость точек
       if (dot_state) DOT_ON; //включаем точки
       break;
-    case 2:
+    case 1:
       OCR0B = flash_dimm[1]; //устанавливаем яркость колбы
       if (flask_state) FLASK_ON; //включаем колбу
+      break;
+    case 2:
+      OCR0B = flash_dimm[2]; //устанавливаем яркость точек
+      if (pm_state) DOT_PM_ON; //включаем точки
       break;
   }
   TCNT0 = 128; //сбрасываем счетчик таймера
@@ -64,6 +69,7 @@ ISR(TIMER0_COMPA_vect) {
 }
 ISR(TIMER0_COMPB_vect) {
   DOT_OFF; //выключаем точки
+  DOT_PM_OFF; //выключаем точку
   FLASK_OFF; //выключаем колбу
 }
 //-----------------------Инициализация индикаторов------------------------------
@@ -80,7 +86,7 @@ void indiInit(void) //инициализация индикаторов
     indi_dimm[i] = 128 + brightDefault[0]; //устанавливаем яркость
   }
 
-  for (uint8_t i = 0; i < 2; i++) flash_dimm[i] = 128 + brightDefault[0];
+  for (uint8_t i = 0; i < 3; i++) flash_dimm[i] = 128 + brightDefault[0];
 
   OCR0A = indi_dimm[0];
   OCR0B = flash_dimm[0];
@@ -108,6 +114,7 @@ void indiEnableSleep(void) //включение режима сна
   for (uint8_t i = 0; i < 4; i++) _OUT_SET(indiPort[i], indiBit[i]); //выключаем индикатор
   dot_state = 0; //выключаем точки
   DOT_OFF; //выключаем точки
+  DOT_PM_OFF; //выключаем точку
   FLASK_OFF; //выключаем колбу
 }
 //------------------------Выключение режима сна--------------------------------
@@ -135,7 +142,7 @@ void indiSetBright(uint8_t pwm) //установка общей яркости
   for (uint8_t i = 0; i < 4; i++) {
     indi_dimm[i] = 128 + pwm;
   }
-  for (uint8_t i = 0; i < 2; i++) {
+  for (uint8_t i = 0; i < 3; i++) {
     flash_dimm[i] = 128 + pwm;
   }
 }
